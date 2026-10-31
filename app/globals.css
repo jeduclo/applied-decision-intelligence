@@ -15,7 +15,7 @@
    is inverted (and tinted teal), so every component switches automatically. */
 :root[data-theme="light"] {
   color-scheme: light;
-  --page: #d8eeeb;
+  --page: #f1f5f9;
   --accent: #0f766e;
   --color-white: #1c2b2e;
   --color-slate-50: #18282b;
