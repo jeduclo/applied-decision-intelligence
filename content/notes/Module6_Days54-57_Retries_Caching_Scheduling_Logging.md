@@ -60,6 +60,12 @@ Keep the Prefect server running in a second terminal (`prefect server start --ho
 
 ## 54.1 Where Should Retries Live? (20 min)
 
+> **Question it answers:** If requests, steps and whole runs all retry, how many attempts could one failing request trigger?
+>
+> **Other questions you can answer the same way:**
+> - Which level should handle a brief API outage?
+> - Why is my failing run taking hours?
+
 You already retry at one level: dlt's HTTP helper retries individual requests (Day 29). Adding Prefect retries creates **layers**, and layers **multiply**:
 
 ```
@@ -80,6 +86,11 @@ Principle: **each layer should cover a different timescale.** HTTP retries handl
 ---
 
 ## 54.2 Task Retries: Counts, Delays, Backoff, Jitter (25 min)
+
+> **Question it answers:** How do I retry a flaky step a few times, waiting longer between each attempt?
+>
+> **Other questions you can answer the same way:**
+> - How often does a 30% failure rate still fail after three retries?
 
 Create `orchestration/flows/retry_demo.py`:
 
@@ -132,6 +143,11 @@ In the UI, the task run shows its state history: **Running → Retrying → Runn
 
 ### Changing retries per call
 
+> **Question it answers:** How do I change the retry settings for one particular call only?
+>
+> **Other questions you can answer the same way:**
+> - How do I run without retries while debugging?
+
 A task's defaults can be overridden for one call, without redefining it:
 
 ```python
@@ -160,6 +176,11 @@ Prefect decides whether to retry with a **`retry_condition_fn`**: a function tha
 
 ### A transient-error type and a retry condition
 
+> **Question it answers:** How do I retry only failures that waiting might fix, and not data errors?
+>
+> **Other questions you can answer the same way:**
+> - Should a rejected StatCan release be retried? (No.)
+
 Add to `orchestration/tasks/commands.py`:
 
 ```python
@@ -181,6 +202,11 @@ def retry_if_transient(task, task_run, state) -> bool:
 `state.result()` re-raises the exception that failed the task, so the `except` clauses **inspect its type**. Only `TransientStepError` triggers a retry.
 
 ### A step task that raises for transient codes
+
+> **Question it answers:** How does a pipeline step decide from its exit code whether to retry, warn or fail?
+>
+> **Other questions you can answer the same way:**
+> - Which exit codes count as temporary problems?
 
 ```python
 from prefect.runtime import task_run as current_task_run
@@ -234,6 +260,11 @@ But Python **also** exits with **1** when a script crashes with an unhandled exc
 
 ### The fix
 
+> **Question it answers:** How do I tell "all tables were quarantined" apart from "the download failed"?
+>
+> **Other questions you can answer the same way:**
+> - Why was a quarantined release being retried?
+
 Give quarantine its own code. In `ingest_statcan_tables.py`, change the end of `main()`:
 
 ```python
@@ -262,6 +293,11 @@ And update `orchestration/STATE_POLICY.md` (Day 53) so that WAP code 3 counts as
 ## 54.5 Timeouts and Retry Budgets (18 min)
 
 ### Timeouts
+
+> **Question it answers:** How do I stop a step that hangs (a stalled download, a locked database) after a set time?
+>
+> **Other questions you can answer the same way:**
+> - What is a sensible time limit for each step?
 
 A step that **hangs** (a stalled download, a locked database) is worse than one that fails, because nothing alerts until someone notices. Give every step a **timeout**:
 
@@ -306,6 +342,11 @@ If the refresh runs at 17:30 ET and the dashboard must be ready by 08:00 the nex
 
 ### Centralise the policy
 
+> **Question it answers:** For each step, how many retries, what delays, what timeout, and which exit codes are temporary or warnings?
+>
+> **Other questions you can answer the same way:**
+> - Where do I change the retry rules for ingestion?
+
 Add to `orchestration/settings.py`:
 
 ```python
@@ -329,6 +370,11 @@ STEP_POLICIES = {
 (`dbt deps` downloads packages from the internet, so a failure there *is* usually transient.)
 
 ### A helper that applies the policy
+
+> **Question it answers:** How do I run any step with its own retry and timeout policy, always getting a state back?
+>
+> **Other questions you can answer the same way:**
+> - How do I add a new step with its own rules?
 
 In `orchestration/tasks/commands.py`:
 
@@ -354,6 +400,12 @@ def step(name: str, cmd: list[str], cwd: str | None = None, drill: dict | None =
 Update `daily_refresh.py` so every step goes through `step(...)` (replacing `run_step_with_state`), and pass the flow's `drill` parameter down to the subflows.
 
 ### Drills
+
+> **Question it answers:** Does each step retry, recover or fail exactly as the policy says when I simulate problems?
+>
+> **Other questions you can answer the same way:**
+> - Is a dbt failure correctly not retried?
+> - Does ingestion recover after one temporary failure?
 
 For quick drills, temporarily set the delays in `STEP_POLICIES` to a few seconds, then:
 
@@ -417,6 +469,11 @@ Cached results are **persisted** to result storage, by default files under `~/.p
 
 ## 55.2 Caching an API Fetch (23 min)
 
+> **Question it answers:** How do I reuse a recent CPI download instead of calling StatCan again on every run?
+>
+> **Other questions you can answer the same way:**
+> - How many API calls does caching save each day?
+
 The CPI briefing (Day 51) fetches from StatCan on every run, though CPI only changes once a month. Cache it:
 
 ```python
@@ -442,6 +499,11 @@ The second run's `fetch_cpi` is **Cached**: no request to StatCan, and instant. 
 
 ### Forcing a refresh
 
+> **Question it answers:** How do I ignore the cached value and fetch fresh data on demand?
+>
+> **Other questions you can answer the same way:**
+> - How do I force new data right after a release?
+
 ```python
 fetch_cpi.with_options(refresh_cache=True)(25)       # ignore any cached value; store a new one
 ```
@@ -462,6 +524,11 @@ With `INPUTS` alone, the cache key doesn't know that **StatCan published new dat
 ---
 
 ## 55.3 Cache Keys from the Data's Own Version (23 min)
+
+> **Question it answers:** How do I reuse the cached CPI until StatCan actually releases new data, instead of guessing an expiry time?
+>
+> **Other questions you can answer the same way:**
+> - Has the CPI changed since my last download?
 
 Time-based expiration is a guess. Better: make the key depend on **what the data provider says has changed**. StatCan's `getCubeMetadata` reports each table's `releaseTime` (Day 27). If the release time hasn't changed, the data hasn't either.
 
@@ -521,6 +588,11 @@ Caching is powerful and dangerous. **Only cache work whose result is fully deter
 
 ### Where cached results live
 
+> **Question it answers:** Where are cached results stored, and how much space do they use?
+>
+> **Other questions you can answer the same way:**
+> - Do I need to clean up old cached results?
+
 ```bash
 ls ~/.prefect/storage | head
 du -sh ~/.prefect/storage
@@ -549,6 +621,11 @@ For each task, decide: cache or not? If yes, with which key?
 > **Rebuild only if the warehouse's inputs or the dbt code changed since the last successful build.**
 
 ### What goes into a fingerprint?
+
+> **Question it answers:** Has the raw data's content actually changed since the last dbt build?
+>
+> **Other questions you can answer the same way:**
+> - Did today's ingestion bring anything new, or just reload the same values?
 
 | Input | How we measure it |
 |---|---|
@@ -602,6 +679,11 @@ def warehouse_fingerprint() -> str:
 
 ### Remembering the last build: Prefect Variables
 
+> **Question it answers:** How do I remember the fingerprint of the last successful build between runs?
+>
+> **Other questions you can answer the same way:**
+> - When was the warehouse last rebuilt, and from which data?
+
 **Variables** are small named values stored by the Prefect server, readable and editable in the UI (*Variables* page):
 
 ```python
@@ -612,6 +694,11 @@ last = Variable.get("dbt_last_fingerprint", default=None)
 ```
 
 ### The decision in the transform subflow
+
+> **Question it answers:** Should dbt rebuild today, or can it be skipped because nothing changed?
+>
+> **Other questions you can answer the same way:**
+> - How do I force a rebuild anyway?
 
 ```python
 from prefect.states import Completed
@@ -650,6 +737,11 @@ Also update `outcome()` so that a state named **Skipped** counts as `"ok"`. It's
 ---
 
 ## 55.6 Mini-Project: A Refresh That Does Nothing When Nothing Changed (20 min)
+
+> **Question it answers:** How much faster is the second refresh of the day when nothing has changed?
+>
+> **Other questions you can answer the same way:**
+> - Does the refresh skip work correctly but still rebuild when data changes?
 
 1. Apply release-keyed caching to the CPI briefing (55.3), and a short-expiry cache to StatCan metadata calls used in the flow.
 2. Implement the fingerprint skip (55.5) in `daily_refresh`.
@@ -719,6 +811,11 @@ We'll do both: `serve()` first to see schedules working, then the full setup.
 
 ## 56.2 Quick Scheduling with `serve()` (20 min)
 
+> **Question it answers:** How do I run the CPI briefing automatically every 15 minutes while learning?
+>
+> **Other questions you can answer the same way:**
+> - How do I schedule a flow without setting up any infrastructure?
+
 Create `orchestration/flows/serve_local.py`:
 
 ```python
@@ -774,6 +871,11 @@ Thanks to change detection (Day 30) and fingerprints (Day 55), a run that finds 
 
 ### Cron in five fields
 
+> **Question it answers:** How do I write "09:15 every weekday" or "07:00 every Monday" as a schedule?
+>
+> **Other questions you can answer the same way:**
+> - When should the refresh run relative to StatCan's 08:30 releases?
+
 ```
 ┌──────── minute (0–59)
 │ ┌────── hour (0–23)
@@ -800,6 +902,11 @@ Cron doesn't know Canadian statutory holidays. On holidays our runs find no new 
 
 ### Step 1 — A work pool
 
+> **Question it answers:** Where will scheduled runs actually execute?
+>
+> **Other questions you can answer the same way:**
+> - Which machine picks up the scheduled work?
+
 A **process** work pool runs flows as local subprocesses, which suits a Codespace:
 
 ```bash
@@ -808,6 +915,11 @@ prefect work-pool ls
 ```
 
 ### Step 2 — `prefect.yaml`: deployments as code
+
+> **Question it answers:** How do I define every scheduled job (morning, evening, weekly rebuild, briefing, watchdog) in one version-controlled file?
+>
+> **Other questions you can answer the same way:**
+> - When does each job run, and with which parameters?
 
 Create `prefect.yaml` at the repository root:
 
@@ -891,6 +1003,11 @@ Key points:
 
 ### Step 3 — Deploy and start a worker
 
+> **Question it answers:** How do I register all scheduled jobs and start the worker that runs them?
+>
+> **Other questions you can answer the same way:**
+> - Are all the deployments registered?
+
 ```bash
 prefect deploy --all                      # registers all deployments from prefect.yaml
 prefect deployment ls
@@ -915,6 +1032,11 @@ Schedules aren't the only way to trigger runs.
 
 ### From the CLI
 
+> **Question it answers:** How do I start a scheduled job right now, optionally with different parameters?
+>
+> **Other questions you can answer the same way:**
+> - How do I run an extra refresh after a surprise release?
+
 ```bash
 prefect deployment run 'daily-refresh/prod-evening'
 prefect deployment run 'daily-refresh/prod-evening' --param force_transform=true
@@ -927,6 +1049,11 @@ prefect deployment run 'cpi-briefing/cpi-briefing' --param latest_n=49
 
 ### From Python (e.g. from another flow)
 
+> **Question it answers:** How can one flow trigger another job without waiting for it to finish?
+>
+> **Other questions you can answer the same way:**
+> - How do I start a rebuild from a script?
+
 ```python
 from prefect.deployments import run_deployment
 
@@ -936,6 +1063,11 @@ run = run_deployment("daily-refresh/prod-evening",
 ```
 
 ### Pausing and resuming schedules
+
+> **Question it answers:** How do I pause scheduled runs during maintenance and resume them afterwards?
+>
+> **Other questions you can answer the same way:**
+> - How do I stop runs while I restructure dbt models?
 
 During maintenance (e.g. while restructuring dbt models), pause schedules without deleting anything:
 
@@ -1010,6 +1142,11 @@ git add prefect.yaml orchestration && git commit -m "Day 56: deployments, schedu
 
 ### Levels from subprocess output
 
+> **Question it answers:** How do I make errors and warnings from dbt, dlt and GX show up at the right log level?
+>
+> **Other questions you can answer the same way:**
+> - How do I filter today's logs for errors only?
+
 Since Day 52, every line of every tool's output is logged at INFO, so a dbt error and a progress message look the same in the UI. Map levels from the content:
 
 ```python
@@ -1043,6 +1180,11 @@ Include **what, which object, how much, how long, and what happens next**. Never
 
 ### Log levels for the whole platform
 
+> **Question it answers:** How much detail should the logs record in development versus production?
+>
+> **Other questions you can answer the same way:**
+> - How do I see debug messages while developing?
+
 ```bash
 prefect config set PREFECT_LOGGING_LEVEL=INFO            # DEBUG while developing
 ```
@@ -1056,6 +1198,11 @@ prefect config set PREFECT_LOGGING_EXTRA_LOGGERS="urllib3"
 (Our main tools run as subprocesses, so their output already arrives through the streaming in `run_step`.)
 
 ### Logging outside a run
+
+> **Question it answers:** How can shared code log messages whether it runs inside a flow or as a plain script?
+>
+> **Other questions you can answer the same way:**
+> - Why does get_run_logger fail in my test script?
 
 Code shared by flows and ordinary scripts can't always call `get_run_logger()`, which only works inside a run. Use a fallback:
 
@@ -1076,6 +1223,11 @@ def logger_for_context():
 ## 57.2 Secrets and Runtime Configuration in Prefect (20 min)
 
 ### Secret blocks
+
+> **Question it answers:** How do I store the alert webhook address securely in Prefect?
+>
+> **Other questions you can answer the same way:**
+> - Where are secrets kept, and who can see them?
 
 **Blocks** are Prefect's stored configuration objects. A **Secret** block stores a sensitive value encrypted on the server, masked in the UI, and loadable by any flow:
 
@@ -1111,6 +1263,11 @@ Update the alert hook (Day 53) to post to `webhook_url()`, falling back to Day 2
 
 ### Using a Variable for an operational threshold
 
+> **Question it answers:** How do I make the "maximum age before alert" threshold editable without changing code?
+>
+> **Other questions you can answer the same way:**
+> - How do I relax the alert threshold during a holiday?
+
 ```python
 from prefect.variables import Variable
 
@@ -1126,6 +1283,11 @@ The watchdog (57.5) reads it. An operator can relax the threshold during a plann
 `concurrency_limit: 1` (Day 56) stops two runs of the **same** deployment overlapping. But `prod-morning`, `prod-evening` and `weekly-full-rebuild` are **different** deployments, and a manual run of `ingest.py` could also collide with them. The real constraint is **one writer to `macro.duckdb` at a time**, so let's enforce exactly that.
 
 ### A global concurrency limit
+
+> **Question it answers:** How do I make sure only one job writes to the DuckDB warehouse at a time?
+>
+> **Other questions you can answer the same way:**
+> - Why is this run "waiting"? Is another job holding the database?
 
 ```bash
 prefect gcl create duckdb-writer --limit 1
@@ -1158,6 +1320,11 @@ Mark which steps write in `STEP_POLICIES` (`writes_duckdb=True` for ingest_api, 
 ---
 
 ## 57.4 Run History as Data (25 min)
+
+> **Question it answers:** How do I keep a table of every step of every run, with outcome and duration?
+>
+> **Other questions you can answer the same way:**
+> - When did ingestion last fail?
 
 The Prefect UI shows runs, but you've learned the value of **history as a table** (GX history, Day 47): trends, KPIs, dbt models. Apply the same pattern to orchestration.
 
@@ -1201,6 +1368,12 @@ Call it at the end of `daily_refresh`, **before** returning the final state (com
 
 ### Questions the history answers
 
+> **Question it answers:** How long does each step take week by week, and is anything getting slower?
+>
+> **Other questions you can answer the same way:**
+> - Which step fails most often?
+> - How often are runs completed with warnings?
+
 ```sql
 -- How long does each step take, and is it getting slower?
 select step,
@@ -1225,6 +1398,11 @@ Add a dbt source `ops` with `external_location: "../data/orchestration/runs/*.pa
 ---
 
 ## 57.5 A Watchdog: Alerting When Nothing Happens (18 min)
+
+> **Question it answers:** Has the daily refresh completed successfully recently, or has it silently stopped running?
+>
+> **Other questions you can answer the same way:**
+> - Did the worker die over the weekend?
 
 Hooks alert when a run **fails**. But what if **no run happens at all**: the worker died, the Codespace stopped, someone paused a schedule and forgot? No failure means no alert. You need a check that looks for the **absence** of success.
 
@@ -1304,6 +1482,11 @@ Assemble Days 51–57 into the final flow for this module.
 Record the evidence (run names, screenshots or log excerpts) in `orchestration/ACCEPTANCE.md`.
 
 ### Update the runbook
+
+> **Question it answers:** What should the person on duty know about schedules, workers, forced rebuilds and stuck runs?
+>
+> **Other questions you can answer the same way:**
+> - What do I do if no refresh ran this morning?
 
 Add to `RUNBOOK.md`:
 

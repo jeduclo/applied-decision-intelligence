@@ -92,6 +92,11 @@ The model is **partially** linear: linear in the treatment (one number, θ, the 
 
 ## 74.2 Frisch–Waugh–Lovell: Partialling Out, the Linear Way (23 min)
 
+> **Question it answers:** Can I get the effect of rates on housing by first removing what the business cycle explains from both, then regressing residual on residual?
+>
+> **Other questions you can answer the same way:**
+> - Why does "partialling out" give the same coefficient as the full regression?
+
 You know this theorem from econometrics. In the linear regression Y = θD + Xβ + ε, the OLS estimate of θ equals the coefficient from regressing:
 - the **residuals of Y** on X, on
 - the **residuals of D** on X.
@@ -140,6 +145,11 @@ So, just like FWL:
 This is Robinson's (1988) estimator. With linear models for ℓ and m it's exactly FWL; with random forests or XGBoost it handles **non-linear confounding**, which defeated linear controls in Day 71's exercise 3.
 
 ### A non-linear world
+
+> **Question it answers:** What happens to the estimate when the confounders affect rates and housing in non-linear ways?
+>
+> **Other questions you can answer the same way:**
+> - Can a linear control for the cycle remove non-linear confounding?
 
 Add to `causal/simulate.py`:
 
@@ -199,6 +209,11 @@ ML estimators of g are **regularised**: they shrink, smooth and trade bias for v
 
 ### Bias 2 — Overfitting bias (from using the same data twice)
 
+> **Question it answers:** Why is the estimate biased when the same observations are used both to fit the machine-learning model and to estimate the effect?
+>
+> **Other questions you can answer the same way:**
+> - Why can a flexible model make the causal estimate worse?
+
 Even with residualisation on both sides, if ℓ̂ and m̂ are fitted **on the same observations** whose residuals we then use, flexible learners partly **fit the noise**. In-sample residuals are too small and correlated with the noise in ways that bias θ̂. In 74.3, the random forests predicted the very points they were trained on.
 
 | Estimator | Residualise D? | Out-of-sample nuisance predictions? | Bias |
@@ -246,6 +261,11 @@ ML nuisance estimates converge slower than parametric ones (they're flexible). O
 ---
 
 ## 74.6 Mini-Project: A Monte Carlo of Three Estimators (23 min)
+
+> **Question it answers:** Across many simulated economies, which estimator recovers the true effect: naive OLS, linear controls, or ML partialling-out?
+>
+> **Other questions you can answer the same way:**
+> - How large is each estimator's bias and spread?
 
 Create `causal/montecarlo.py`:
 
@@ -342,6 +362,11 @@ git add causal notebooks && git commit -m "Day 74: PLR, nuisance functions, ML b
 
 ## 75.1 Sample Splitting and Cross-Fitting (23 min)
 
+> **Question it answers:** How do I make sure each observation's prediction comes from a model that never saw it?
+>
+> **Other questions you can answer the same way:**
+> - How many folds should I use?
+
 To avoid overfitting bias, the nuisance predictions used for observation *i* must come from models that **didn't see *i***.
 
 **Simple sample splitting** fits nuisances on half the data and estimates θ on the other half. It works, but wastes half the sample.
@@ -364,6 +389,11 @@ Every observation's residual is **out-of-sample**, and every observation is used
 ---
 
 ## 75.2 DML by Hand: A Reusable Implementation (25 min)
+
+> **Question it answers:** What is the effect of rates on housing, estimated with cross-fitted machine-learning predictions and a valid standard error?
+>
+> **Other questions you can answer the same way:**
+> - How do I compute the DML estimate step by step?
 
 Writing it yourself makes the method transparent, and gives you full control later (blocked folds, HAC errors). Create `causal/dml.py`:
 
@@ -446,6 +476,11 @@ print(f"out-of-fold R²: E[Y|X] {res.r2_l:.2f}, E[D|X] {res.r2_m:.2f}")
 
 ## 75.3 The `doubleml` Package (25 min)
 
+> **Question it answers:** What does the established DoubleML package estimate for the same problem?
+>
+> **Other questions you can answer the same way:**
+> - How do I run DML with a few lines of code?
+
 The **DoubleML** package (Bach, Chernozhukov, Kurz & Spindler) implements these estimators with a consistent API, many model types (PLR, interactive models, IV variants), repeated cross-fitting, bootstrap inference and sensitivity analysis.
 
 ```python
@@ -480,6 +515,11 @@ print(plr.confint(level=0.95))
 
 ### Cross-check with your implementation
 
+> **Question it answers:** Do my hand-written estimate and the package's estimate agree?
+>
+> **Other questions you can answer the same way:**
+> - Is my implementation correct?
+
 ```python
 from causal.dml import dml_plr
 
@@ -507,6 +547,12 @@ print(plr_same.coef[0], mine_same.theta)
 ---
 
 ## 75.4 Choosing and Diagnosing Learners (23 min)
+
+> **Question it answers:** Which machine-learning model best predicts housing and the rate change from the controls, and does that choice change the effect?
+>
+> **Other questions you can answer the same way:**
+> - How well do the controls predict the policy decision?
+> - Is the estimate sensitive to the learner?
 
 DML is only as good as its nuisance estimates. Compare several learners, and **report their quality**.
 
@@ -560,6 +606,11 @@ Tuning inside the learner happens within each **training** fold, so the held-out
 
 ## 75.5 Repeated Cross-Fitting and Inference (18 min)
 
+> **Question it answers:** How much does the estimate change with different random splits, and what is the combined estimate?
+>
+> **Other questions you can answer the same way:**
+> - Is my result stable, or did I get a lucky split?
+
 Different random fold assignments give slightly different θ̂. To make results **not depend on one lucky split**, repeat cross-fitting *R* times and aggregate. DoubleML reports the **median** θ̂, with a standard error that adds the across-split variability:
 
 **θ̂ = median(θ̂ᵣ),  SE = √ median(SEᵣ² + (θ̂ᵣ − θ̂)²)**
@@ -589,6 +640,11 @@ def aggregate_reps(thetas, ses):
 ---
 
 ## 75.6 Mini-Project: Coverage of DML Confidence Intervals (23 min)
+
+> **Question it answers:** Do DML's 95% confidence intervals contain the true effect about 95% of the time?
+>
+> **Other questions you can answer the same way:**
+> - Can I trust the reported uncertainty?
 
 A 95% confidence interval should contain the true θ in about **95%** of repeated samples. That's **coverage**, the same idea as forecast-interval coverage on Day 63. Measure it:
 
@@ -665,6 +721,11 @@ Two fixes, both standard in time-series econometrics:
 
 ## 76.2 Blocked Cross-Fitting with Buffers (28 min)
 
+> **Question it answers:** How do I split monthly data into folds so that neighbouring months don't leak information across folds?
+>
+> **Other questions you can answer the same way:**
+> - How big should the buffer between training and test months be?
+
 ```
 time →   [ fold 1 ][ fold 2 ][ fold 3 ][ fold 4 ][ fold 5 ]
 
@@ -706,6 +767,11 @@ Check the splits visually: for each fold, print the test range and the gap to th
 
 ## 76.3 HAC Inference for Overlapping Horizons (25 min)
 
+> **Question it answers:** How do I compute standard errors when 12-month outcomes overlap from one month to the next?
+>
+> **Other questions you can answer the same way:**
+> - How many lags should the Newey–West correction use?
+
 `plr_from_residuals(y_res, d_res, hac_lags=L)` (Day 75) already supports Newey–West standard errors. The question is the lag length *L*.
 
 | Source of serial correlation | Implied minimum lag |
@@ -725,6 +791,11 @@ def hac_lags_for(n: int, h: int) -> int:
 ---
 
 ## 76.4 Monte Carlo: iid vs Time-Series-Aware DML (25 min)
+
+> **Question it answers:** In a realistic monthly world, does standard DML give misleading intervals, and does the time-series version fix them?
+>
+> **Other questions you can answer the same way:**
+> - How much does ignoring autocorrelation overstate precision?
 
 Build a world with the features of 76.1. Add to `causal/simulate.py`:
 
@@ -796,6 +867,11 @@ Also compare `mean_se` with `sd_theta` for each variant: the iid version's repor
 
 ## 76.5 Custom Splits in `doubleml` (18 min)
 
+> **Question it answers:** How do I give the DoubleML package my own time-aware folds?
+>
+> **Other questions you can answer the same way:**
+> - Can I combine the package's convenience with blocked splits?
+
 DoubleML accepts your own splits through `set_sample_splitting`, which lets you combine its machinery (repetitions, model variants, sensitivity analysis on Day 79) with blocked folds:
 
 ```python
@@ -839,6 +915,11 @@ print("θ̂ (median over reps), HAC SE:", aggregate_reps(thetas, ses))
 ---
 
 ## 76.6 Mini-Project: `fit_plr_ts`, a Time-Series DML Wrapper (20 min)
+
+> **Question it answers:** What is the effect with blocked folds, buffers, HAC standard errors and repeated splits, from one function call?
+>
+> **Other questions you can answer the same way:**
+> - How do I run the full time-series DML design for any outcome and horizon?
 
 Add a single entry point to `causal/dml.py` that applies everything from today, so Day 77–80 code stays short:
 
@@ -896,6 +977,11 @@ git add causal tests notebooks && git commit -m "Day 76: blocked cross-fitting, 
 ---
 
 ## 77.1 From `design_spec.yml` to an Estimation Dataset (25 min)
+
+> **Question it answers:** How do I build the exact dataset (treatment, outcome, lagged controls, exclusions) that the reviewed design specifies?
+>
+> **Other questions you can answer the same way:**
+> - Does the dataset match the pre-registered design?
 
 The Day 73 spec defines treatment, outcome, controls (with lags and transforms) and exclusions. Build the dataset **from the spec**, reusing Day 68's availability logic, so the estimated model is exactly the reviewed design.
 
@@ -969,6 +1055,11 @@ Every choice (lags, transforms, sample, exclusions) is driven by the spec or by 
 
 ## 77.2 A Rehearsal Outcome: Rate Changes and the Unemployment Rate (25 min)
 
+> **Question it answers:** What is the estimated effect of a rate change on unemployment 12 months later, as a rehearsal before the real outcome?
+>
+> **Other questions you can answer the same way:**
+> - Does the whole design run end to end before the housing data arrive?
+
 The housing-starts series arrives on Day 78. A professional team doesn't wait: it **rehearses the whole analysis** on an outcome already in the platform, to debug code and diagnostics before the real data arrive. Our rehearsal question:
 
 > *Effect of a 1pp overnight-rate increase on the change in the unemployment rate over the following h months.*
@@ -1010,6 +1101,11 @@ Repeat with **CPI inflation** as the outcome (`panel["headline_yoy"]`, pp change
 
 ## 77.3 Learners, Diagnostics and the Reaction-Function Fit (20 min)
 
+> **Question it answers:** How well do the controls explain the Bank's decisions and the outcome, and how do estimates differ across learners?
+>
+> **Other questions you can answer the same way:**
+> - Is the policy decision too predictable to leave useful variation?
+
 Run the rehearsal with several learners and **report diagnostics** alongside estimates:
 
 ```python
@@ -1044,6 +1140,12 @@ print(table.round(3).to_string(index=False))
 
 ## 77.4 Dynamic Responses Across Horizons (20 min)
 
+> **Question it answers:** How does the effect of a rate change on unemployment build up over 3, 6, 12, 18 and 24 months?
+>
+> **Other questions you can answer the same way:**
+> - When does the effect peak?
+> - Does it fade after two years?
+
 Estimating θ for several horizons traces the **dynamic effect** of a rate change, in the spirit of local projections (Jordà, 2005):
 
 ```python
@@ -1072,6 +1174,11 @@ Note that each horizon is a **separate** estimate with its own sample (longer ho
 ---
 
 ## 77.5 Pre-Registered Robustness Checks (23 min)
+
+> **Question it answers:** Do the pre-registered checks pass: no "effect" on past outcomes (placebo), stability without the pandemic, and with other learners?
+>
+> **Other questions you can answer the same way:**
+> - Would a referee believe this estimate?
 
 Day 73 listed robustness checks **before** any estimates. Run them now on the rehearsal outcome, exactly as written:
 
@@ -1120,6 +1227,11 @@ print(pd.DataFrame(checks).T[["theta", "ci_lo", "ci_hi", "n"]].round(3))
 
 ## 77.6 A Specification Curve and `run_design.py` (23 min)
 
+> **Question it answers:** Across all defensible combinations of learner, treatment definition, sample and buffer, how much does the estimate vary?
+>
+> **Other questions you can answer the same way:**
+> - Is the conclusion robust to reasonable modelling choices?
+
 Many defensible choices exist: learners, buffer sizes, treatment definitions, sample periods. Rather than report one favourite, show **all** reasonable combinations sorted by estimate, a **specification curve** (Simonsohn, Simmons & Nelson, 2020). If most specifications agree in sign and rough size, the conclusion is robust; if they scatter across zero, it isn't.
 
 ```python
@@ -1154,6 +1266,11 @@ print(f"{(curve.theta > 0).mean():.0%} of specifications positive; "
 ```
 
 ### `causal/run_design.py`
+
+> **Question it answers:** How do I run the whole causal design (estimates, checks, report) for any outcome with one command?
+>
+> **Other questions you can answer the same way:**
+> - How do I rerun the analysis after new data arrive?
 
 Package everything into one script that reads the spec, takes the outcome as an argument, and writes results plus a Markdown report: main estimates by horizon, learner table, robustness checks, specification-curve summary, diagnostics and package versions. On Day 78 the **only** change will be the outcome argument:
 

@@ -98,6 +98,11 @@ Flexible ML models reduce bias but risk variance. Every technique this week (reg
 
 ### A separate environment, as before (Day 42)
 
+> **Question it answers:** How do I install the forecasting libraries without disturbing the data pipeline?
+>
+> **Other questions you can answer the same way:**
+> - Which versions of XGBoost and scikit-learn am I using?
+
 Modelling libraries are large and evolve quickly; keep them isolated from the pipeline:
 
 ```bash
@@ -113,6 +118,11 @@ python -c "import xgboost, sklearn, statsmodels; print(xgboost.__version__, skle
 Add `.venv-ml/` and `data/forecasts/` to `.gitignore`. In VS Code, notebooks in `notebooks/` can select `.venv-ml` as their kernel (Day 4). **Explore in notebooks, keep reusable code in `forecasting/`.**
 
 ### A mart for modelling
+
+> **Question it answers:** What are monthly CPI level, YoY, MoM and core inflation, in one tested table ready for forecasting?
+>
+> **Other questions you can answer the same way:**
+> - Which inputs does the forecasting model use, and where do they come from?
 
 Models should read **marts**, never raw tables: they get tested, documented data ("dashboards present; dbt computes" applies to models too). We need a long CPI history, which `macro_monthly` (from 2006) doesn't have. Add a mart in `macro_dbt/models/marts/ml/ml_cpi_monthly.sql`:
 
@@ -142,6 +152,11 @@ source .venv-ml/bin/activate
 (Also add `ml_cpi_monthly` to an exposure, e.g. `forecasting_models`, so the lineage graph shows that models depend on it, as on Day 40.)
 
 ### Loading data: `forecasting/data.py`
+
+> **Question it answers:** How do I load the forecasting inputs from the marts with one function call?
+>
+> **Other questions you can answer the same way:**
+> - Is my model reading the same data as the dashboards?
 
 ```python
 """Load modelling inputs from the exported dbt marts."""
@@ -193,6 +208,11 @@ We use **direct** forecasting by default (Day 63 compares both).
 
 ### The supervised dataset
 
+> **Question it answers:** For each month, what was known at that time, and what was inflation h months later?
+>
+> **Other questions you can answer the same way:**
+> - How do I turn a time series into a table a machine-learning model can learn from?
+
 For horizon *h*, each row pairs **features known at month *t*** with the **target at *t + h***:
 
 ```
@@ -221,6 +241,11 @@ Standard ML cross-validation **shuffles** rows into folds. For time series that 
 
 ### The rolling-origin (pseudo out-of-sample) backtest
 
+> **Question it answers:** How accurate would this model have been if I had used it in real time, month after month?
+>
+> **Other questions you can answer the same way:**
+> - How did each model do during the 2021–22 inflation surge?
+
 Simulate what a forecaster would have done in real time:
 
 ```
@@ -233,6 +258,11 @@ origin 2025-xx: …
 Collect all forecasts, compare them with what actually happened, and compute errors. This is the standard way macroeconomists evaluate forecasts (*pseudo out-of-sample* because we use final data, not real-time vintages; more on Day 68).
 
 ### The subtle leakage trap: training rows near the origin
+
+> **Question it answers:** Which training rows are not yet usable at a given forecast date, because their outcomes weren't known then?
+>
+> **Other questions you can answer the same way:**
+> - Is my backtest accidentally using information from the future?
 
 At origin *t*, a training row with feature date *s* has target date *s + h*. That target is only **known** if *s + h ≤ t*. Rows with *s* between *t − h + 1* and *t* have targets **in the future** relative to the origin, so they **must be excluded** from training, even though their *features* are known.
 
@@ -287,6 +317,11 @@ Report errors **per horizon**. A model can win at 1 month and lose at 12.
 
 ### `forecasting/features.py`
 
+> **Question it answers:** How do I build lagged and smoothed features that only use data available at each date?
+>
+> **Other questions you can answer the same way:**
+> - What were inflation's last 12 values at each point in time?
+
 ```python
 """Leakage-safe features: everything in row t uses data dated ≤ t only."""
 import pandas as pd
@@ -309,6 +344,11 @@ def univariate_cpi_features(df: pd.DataFrame, n_lags: int = 12) -> pd.DataFrame:
 ```
 
 ### `forecasting/evaluate.py`
+
+> **Question it answers:** How do I backtest any model at several horizons and compute its error metrics in the same way?
+>
+> **Other questions you can answer the same way:**
+> - What is the RMSE at 1, 3, 6 and 12 months ahead?
 
 ```python
 """Rolling-origin (pseudo out-of-sample) evaluation and forecast metrics."""
@@ -367,6 +407,11 @@ def score(results: pd.DataFrame, benchmark: str = "naive") -> pd.DataFrame:
 
 ### `forecasting/models.py`: benchmarks as scikit-learn-style objects
 
+> **Question it answers:** How well do simple benchmarks do: "no change", the historical average, or the 2% target?
+>
+> **Other questions you can answer the same way:**
+> - Does a fancy model beat "inflation stays where it is"?
+
 ```python
 """Benchmarks with fit/predict, so they plug into the same harness as ML models."""
 import numpy as np
@@ -402,6 +447,11 @@ class Constant:
 ```
 
 ### Run the first horse race
+
+> **Question it answers:** Which forecasting method has the lowest error at each horizon in the first comparison?
+>
+> **Other questions you can answer the same way:**
+> - At what horizon do simple benchmarks become hard to beat?
 
 In `notebooks/day61.ipynb` (kernel `.venv-ml`), or a script:
 
@@ -481,6 +531,11 @@ git push
 
 ## 62.1 Decision Trees: Splitting the Data into Regimes (25 min)
 
+> **Question it answers:** How does a tree predict inflation by asking a few yes/no questions about recent data?
+>
+> **Other questions you can answer the same way:**
+> - Which conditions separate high-inflation and low-inflation regimes?
+
 A **regression tree** predicts by asking a sequence of yes/no questions about the features, and predicting the **average target** of the training rows that end up in the same final group (**leaf**).
 
 ```
@@ -521,6 +576,11 @@ Read the printed rules. Which features did the tree choose? Do the thresholds ma
 
 ## 62.2 Overfitting and the Depth Trade-Off (20 min)
 
+> **Question it answers:** How deep should the tree be before it fits the past well but forecasts the future badly?
+>
+> **Other questions you can answer the same way:**
+> - Why does in-sample accuracy keep improving while out-of-sample accuracy gets worse?
+
 A tree can keep splitting until every leaf holds **one** training row: a perfect in-sample fit, and terrible forecasts.
 
 ```python
@@ -552,6 +612,11 @@ The controls that limit a tree's flexibility:
 
 ## 62.3 Ensembles: Bagging and Random Forests (23 min)
 
+> **Question it answers:** Does averaging many trees give a more stable and accurate inflation forecast than one tree?
+>
+> **Other questions you can answer the same way:**
+> - How much does a random forest improve on a single tree?
+
 Single trees are **unstable**: a small change in the data can change the first split and hence everything below it (high variance). The fix is to **average many trees**.
 
 | Method | How | Reduces |
@@ -581,6 +646,11 @@ Random forests build trees **independently** and average them. **Boosting** buil
 
 ### Boosting in ten lines
 
+> **Question it answers:** How does boosting improve a forecast step by step, each small tree correcting the previous errors?
+>
+> **Other questions you can answer the same way:**
+> - How many boosting rounds are enough?
+
 ```python
 from sklearn.tree import DecisionTreeRegressor
 
@@ -604,6 +674,11 @@ That's the whole idea: **start simple, then repeatedly correct the remaining err
 
 ### XGBoost
 
+> **Question it answers:** What is the out-of-sample inflation forecast error of a regularised gradient-boosting model?
+>
+> **Other questions you can answer the same way:**
+> - Which XGBoost settings control how flexible the model is?
+
 **XGBoost** (Chen & Guestrin, 2016) is a fast, regularised implementation of gradient boosting, and one of the most widely used ML tools for tabular data.
 
 ```python
@@ -624,6 +699,11 @@ print("XGB out-of-sample RMSE:", np.sqrt(np.mean((yte - xgb.predict(Xte)) ** 2))
 ```
 
 ### Early stopping: let validation data choose the number of trees
+
+> **Question it answers:** How many trees should XGBoost use, chosen by its performance on the most recent data?
+>
+> **Other questions you can answer the same way:**
+> - When does adding trees start to hurt?
 
 Too many trees overfit. **Early stopping** monitors error on a **validation set** and stops when it stops improving. For time series, the validation set must be the **most recent** part of the training window, never a random sample:
 
@@ -653,6 +733,11 @@ Systematic tuning of these, without leakage, is Day 64.
 ---
 
 ## 62.5 Trees Can't Extrapolate: What That Means for Macro Data (20 min)
+
+> **Question it answers:** What happens when a tree model must forecast a CPI level higher than anything in its training data?
+>
+> **Other questions you can answer the same way:**
+> - Why should I forecast inflation rates rather than price levels with trees?
 
 Because tree predictions are **averages of training targets**, a tree model can **never predict a value outside the range it has seen**. For trending or level data this is a serious limitation.
 
@@ -691,6 +776,11 @@ That's why our target is **yoy inflation**, not the CPI index, and why the Day 6
 ---
 
 ## 62.6 Mini-Project: Trees in the Horse Race (23 min)
+
+> **Question it answers:** Do trees, random forests and XGBoost beat the benchmarks at each horizon?
+>
+> **Other questions you can answer the same way:**
+> - Which model is best at 6 months ahead?
 
 Add tree models to Day 61's comparison, using the same harness, horizons and test period. Add to `forecasting/models.py`:
 
@@ -782,6 +872,11 @@ Our target, **yoy CPI inflation**, is seasonally neutral. Features based on **mo
 
 ## 63.2 Statistical Benchmarks: AR Models with `statsmodels` (25 min)
 
+> **Question it answers:** How well does a classic autoregression, using inflation's own past values, forecast inflation?
+>
+> **Other questions you can answer the same way:**
+> - How many lags does the information criterion select?
+
 An **autoregression** AR(p) forecasts the series from its own last *p* values with a linear equation. It's the workhorse univariate benchmark.
 
 `statsmodels` fits AR models and selects the lag order by an information criterion:
@@ -840,6 +935,11 @@ How does AR(AIC) compare with XGBoost at each horizon?
 
 ## 63.3 Direct vs Recursive Multi-Step Forecasts (23 min)
 
+> **Question it answers:** Is it better to train one model per horizon, or to feed one-step forecasts back in repeatedly?
+>
+> **Other questions you can answer the same way:**
+> - How do errors accumulate in recursive forecasts?
+
 Day 61 introduced both strategies. Let's compare them with the **same** model class (XGBoost) and **pure lag features**, which recursive forecasting needs: every feature must itself be forecastable from predictions.
 
 ```python
@@ -890,6 +990,11 @@ Typical findings, which you should verify on your data:
 ---
 
 ## 63.4 Is the Difference Real? The Diebold–Mariano Test (25 min)
+
+> **Question it answers:** Is model A's lower forecast error statistically significant, or just luck over a short test period?
+>
+> **Other questions you can answer the same way:**
+> - Does XGBoost really beat the AR model at 6 months?
 
 Model A has RMSE 0.95 and model B 1.00 at *h* = 6. Is A really better, or is that luck over ~150 test months? The **Diebold–Mariano (DM) test** (Diebold & Mariano, 1995, *Journal of Business & Economic Statistics*) asks whether the **average difference in losses** between two forecasts is zero.
 
@@ -947,6 +1052,12 @@ Use the backtest errors themselves. For each horizon, take the 10th and 90th per
 
 ### Method 2: quantile regression with XGBoost
 
+> **Question it answers:** What range is inflation likely to fall in six months ahead (10th to 90th percentile)?
+>
+> **Other questions you can answer the same way:**
+> - How uncertain is the inflation outlook?
+> - What is the downside scenario?
+
 Instead of minimising squared error (which targets the **mean**), minimise the **quantile (pinball) loss**, which targets a chosen **quantile**. Recent XGBoost versions support this directly:
 
 ```python
@@ -963,6 +1074,12 @@ q90 = rolling_origin(X, y, xgb_quantile_factory(0.90), H6, "2012-01-01", "q90", 
 (If your XGBoost version rejects `reg:quantileerror`, use scikit-learn's `GradientBoostingRegressor(loss="quantile", alpha=...)`, which plugs into the same factory pattern.)
 
 ### Checking calibration: coverage
+
+> **Question it answers:** Does the 80% interval actually contain the outcome about 80% of the time?
+>
+> **Other questions you can answer the same way:**
+> - Were the intervals too narrow during 2021–22?
+> - How wide are the intervals on average?
 
 An 80% interval should contain the actual outcome about **80%** of the time. That's testable:
 
@@ -987,6 +1104,11 @@ Look at coverage **by year**. Intervals calibrated on calm years typically **und
 ---
 
 ## 63.6 Capstone: A Univariate Leaderboard for CPI Inflation (20 min)
+
+> **Question it answers:** Which univariate model forecasts CPI inflation best at each horizon, and are the differences significant?
+>
+> **Other questions you can answer the same way:**
+> - What would I report to a central-bank audience as the best simple forecast?
 
 Produce a reproducible **leaderboard** script, `forecasting/univariate.py`, that:
 

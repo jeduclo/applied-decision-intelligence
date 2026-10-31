@@ -96,6 +96,12 @@ Using the OECD CLI for month *t* at origin *t* would be a **look-ahead leak**: i
 
 ### A reviewed feature specification
 
+> **Question it answers:** Which macro indicators should help forecast inflation, with which publication lags and transformations?
+>
+> **Other questions you can answer the same way:**
+> - Is unemployment known when the CPI forecast is made?
+> - Which economic family does each predictor belong to?
+
 Like quality specs (Day 44) and seeds (Day 32), features belong in a **reviewed configuration file**. Create `forecasting/feature_spec_cpi.yml`:
 
 ```yaml
@@ -121,6 +127,11 @@ features:
 (Column names follow `macro_monthly` from Days 20 and 39. Check them with `pd.read_parquet("data/marts/macro_monthly.parquet").columns`.)
 
 ### The availability-aware builder
+
+> **Question it answers:** How do I build features that use only the data actually published at each forecast date?
+>
+> **Other questions you can answer the same way:**
+> - Would my backtest have used next month's unemployment by mistake?
 
 Create `forecasting/availability.py`:
 
@@ -172,6 +183,11 @@ def load_monthly_panel() -> pd.DataFrame:
 
 ### Assemble the multivariate design matrix
 
+> **Question it answers:** What does the full set of inflation predictors look like, combining past inflation with labour, monetary, financial and external indicators?
+>
+> **Other questions you can answer the same way:**
+> - How many predictors does the multivariate model use?
+
 ```python
 from forecasting.availability import build_features, load_monthly_panel, load_spec
 from forecasting.data import load_cpi
@@ -192,6 +208,11 @@ print(X.isna().mean().sort_values(ascending=False).head(8).round(2))
 Look at the missing shares. Some series start later. For example, BoC's `FXCADUSD` begins in 2017 in our ingestion (the notebook's "Post-2017 FX API" note), so `usd_cad_*` is empty before then.
 
 ### Missing values: let XGBoost handle them, or impute?
+
+> **Question it answers:** How do I use months where some predictors are missing, instead of dropping them?
+>
+> **Other questions you can answer the same way:**
+> - Should missing values be filled, or left for XGBoost to handle?
 
 | Approach | When |
 |---|---|
@@ -252,6 +273,11 @@ Typically no rows (or only rare corrections). The NSA CPI isn't routinely revise
 
 ## 68.4 Multivariate Models in the Harness (25 min)
 
+> **Question it answers:** Do macro indicators improve inflation forecasts compared with using past inflation alone?
+>
+> **Other questions you can answer the same way:**
+> - At which horizons do extra predictors help most?
+
 Evaluate on a common window. The macro panel starts in 2006, so allow a training period before the first test origin (e.g. test from **2014-01**), and re-score the univariate models on **the same origins** (`score()` already restricts to common origins).
 
 ```python
@@ -295,6 +321,11 @@ With ~100 training months at the first origin and ~30 features, overfitting is a
 
 ### Statistical comparison
 
+> **Question it answers:** Is the multivariate model's improvement over the univariate model statistically significant?
+>
+> **Other questions you can answer the same way:**
+> - Is the gain at 12 months real or luck?
+
 ```python
 from forecasting.evaluate import diebold_mariano
 
@@ -305,6 +336,11 @@ for h in H:
 This is the key test of the day: **does multivariate beat univariate**, with the same model class, the same origins and the same horizons? A significant negative statistic at some horizons means the macro information adds value there.
 
 ### Explanations by economic family
+
+> **Question it answers:** How much of each inflation forecast comes from core inflation, the labour market, monetary policy, financial conditions and external factors?
+>
+> **Other questions you can answer the same way:**
+> - Is the latest forecast driven by the labour market or by oil?
 
 Use Day 66's tools, with the spec's **families** (core, labour, monetary, financial, external, cycle) plus the univariate ones (persistence, momentum, seasonality):
 
@@ -336,6 +372,12 @@ Plot the family decomposition of the 12-month forecast over 2014–2025 (Day 66.
 ---
 
 ## 68.6 Mini-Project: An Ablation Study by Feature Family (23 min)
+
+> **Question it answers:** How much does forecast accuracy fall when each family of indicators is removed?
+>
+> **Other questions you can answer the same way:**
+> - Which group of indicators is truly useful for forecasting inflation?
+> - Could we drop the external variables?
 
 An **ablation study** removes one family at a time and measures how much **out-of-sample** accuracy suffers. It's permutation importance (Day 65.5) at the level of whole information sets, with retraining.
 
@@ -411,6 +453,11 @@ We'll build two related targets:
 
 ## 69.2 A Long Quarterly History: the `ml_gdp_quarterly` Mart (20 min)
 
+> **Question it answers:** What was real GDP growth each quarter over the full available history, ready for modelling?
+>
+> **Other questions you can answer the same way:**
+> - How volatile has quarterly growth been since the 1960s?
+
 `macro_quarterly` starts in 2006, which is too short. Add a modelling mart with the full GDP history in `macro_dbt/models/marts/ml/ml_gdp_quarterly.sql`:
 
 ```sql
@@ -462,6 +509,11 @@ We use the latest vintage and **document it**. As your `gdp_vintages` table accu
 At any moment, the latest available data **ends at different dates** for different series: daily market data up to yesterday, the LFS for last month, the OECD CLI two months back, GDP for the quarter before last. Plotted, the end of the dataset is jagged, hence the **ragged edge**.
 
 ### Design: monthly origins, quarterly targets
+
+> **Question it answers:** At each month, what do the latest available monthly indicators say about this quarter's GDP growth (a nowcast)?
+>
+> **Other questions you can answer the same way:**
+> - What is our best estimate of current-quarter growth before StatCan publishes it?
 
 Each **month-end** is an origin. At origin *m*:
 - the **target quarter** is the quarter containing *m* (for the nowcast);
@@ -554,6 +606,11 @@ Inspect the last rows: the target is `NaN` for quarters not yet published, which
 
 ## 69.4 Evaluating Nowcasts: Error by Month of the Quarter (23 min)
 
+> **Question it answers:** How accurate are GDP nowcasts, and do they get better as more months of the quarter are observed?
+>
+> **Other questions you can answer the same way:**
+> - How much does the third month of data improve the nowcast?
+
 The Day 61 harness assumes targets *h* months ahead. Here each row carries its own `target_known` date, so write a general version. Add to `forecasting/evaluate.py`:
 
 ```python
@@ -579,6 +636,11 @@ def rolling_origin_general(D: pd.DataFrame, feature_cols: list[str], model_facto
 ```
 
 ### Benchmarks for GDP
+
+> **Question it answers:** Does the nowcast beat "same as last published quarter" and a simple linear regression?
+>
+> **Other questions you can answer the same way:**
+> - Is machine learning worth it for GDP nowcasting?
 
 | Benchmark | Forecast |
 |---|---|
@@ -615,6 +677,11 @@ now.to_parquet("data/forecasts/gdp_nowcasts.parquet", index=False)
 
 ### The signature chart of nowcasting
 
+> **Question it answers:** How does nowcast error fall from the first to the third month of the quarter, for each model?
+>
+> **Other questions you can answer the same way:**
+> - When in the quarter does the nowcast become reliable?
+
 ```python
 import matplotlib.pyplot as plt
 import numpy as np
@@ -633,6 +700,12 @@ A good nowcasting model's error **falls** as the quarter progresses: by month 3 
 ---
 
 ## 69.5 COVID Outliers: Robust Losses and Honest Reporting (18 min)
+
+> **Question it answers:** How do the extreme 2020 GDP swings affect model training and evaluation, and how should I report results with and without them?
+>
+> **Other questions you can answer the same way:**
+> - Does a robust loss reduce the influence of the pandemic quarters?
+> - How do models rank excluding 2020?
 
 In 2020, Canadian real GDP growth (annualised) swung by tens of percentage points within two quarters, far outside anything in the training history. Three consequences:
 
@@ -728,6 +801,11 @@ Retraining policy for this course:
 ---
 
 ## 70.2 `run_forecasts.py`: Reproducible Forecasts with Metadata (30 min)
+
+> **Question it answers:** What are today's CPI and GDP forecasts, ranges and drivers, saved with everything needed to reproduce them?
+>
+> **Other questions you can answer the same way:**
+> - Which data and model version produced the forecast in last month's briefing?
 
 Create `forecasting/run_forecasts.py` (runs in `.venv-ml`; exit codes follow the platform convention: **0** ok · **1** failed · **2** warnings):
 
@@ -871,6 +949,11 @@ The **naive** forecast is published alongside the model's, so live accuracy (70.
 
 ## 70.3 Forecast Marts in dbt: History, Latest, and Live Accuracy (23 min)
 
+> **Question it answers:** What are the latest published forecasts, and how accurate have past published forecasts turned out to be?
+>
+> **Other questions you can answer the same way:**
+> - How did last year's 12-month forecasts compare with what actually happened?
+
 Published forecasts are data, so model them in dbt (Day 47's external-source pattern).
 
 **`macro_dbt/models/staging/forecasts/_forecasts__sources.yml`**
@@ -951,6 +1034,11 @@ Add a small summary mart, `forecast_track_record`: MAE and RMSE per target, mode
 
 ### Inputs outside the training range
 
+> **Question it answers:** Are today's inputs outside the range the model has seen, making the forecast less trustworthy?
+>
+> **Other questions you can answer the same way:**
+> - Is oil or the policy rate at a level the model never saw in training?
+
 Trees can't extrapolate (Day 62.5). When today's inputs lie **outside** the range seen in training, the forecast deserves a warning. Create `forecasting/monitoring.py`:
 
 ```python
@@ -979,6 +1067,11 @@ def out_of_range_report(X_train: pd.DataFrame, x_now: pd.DataFrame, label: str,
 `run_forecasts.py` returns exit code **2** when such warnings occur, so the forecast is published **with a flag** (Day 53's *CompletedWithWarnings*) and the dashboard can say so.
 
 ### GX checks on published forecasts
+
+> **Question it answers:** Are the published forecasts complete and coherent (no blanks, lower bound below upper bound) before dashboards use them?
+>
+> **Other questions you can answer the same way:**
+> - Is any horizon missing from today's forecasts?
 
 Register `marts.forecast_latest` as a GX table asset (Day 43, `setup_gx.py`) and add a spec, `quality/specs/forecast_latest.yml` (Day 44 format):
 
@@ -1015,6 +1108,11 @@ Rebuild suites (`python quality/build_suites.py`). The forecast checks join the 
 ---
 
 ## 70.5 Orchestration: The Forecast Subflow (23 min)
+
+> **Question it answers:** How do I produce new forecasts automatically after each refresh, in the modelling environment?
+>
+> **Other questions you can answer the same way:**
+> - Did today's forecasts run, and did they raise warnings?
 
 Add the interpreter for the modelling environment to `orchestration/settings.py`:
 
@@ -1063,6 +1161,12 @@ Forecasting reads only **Parquet marts**, so it needs no DuckDB lock. The dbt st
 ## 70.6 The Model Card and the Forecast Dashboard (15 min)
 
 ### `forecasting/MODEL_CARD.md`
+
+> **Question it answers:** What are these forecasts for, how were they built and evaluated, and what are their limits?
+>
+> **Other questions you can answer the same way:**
+> - Can these forecasts be used for policy evaluation? (No.)
+> - How accurate have they been?
 
 A **model card** (Mitchell et al., 2019) documents a model the way a data contract documents a dataset. Write one with these sections:
 

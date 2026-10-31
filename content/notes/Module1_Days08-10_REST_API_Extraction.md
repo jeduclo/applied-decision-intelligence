@@ -77,6 +77,12 @@ Your Python code is the **client**. Every call follows this cycle.
 
 ### Anatomy of a URL
 
+> **Question it answers:** Which part of a web address names the data source, the series and the date range I want?
+>
+> **Other questions you can answer the same way:**
+> - How do I ask the Bank of Canada for only 2024 data?
+> - How do I change the series in a URL?
+
 ```
 https://www.bankofcanada.ca/valet/observations/V39079/json?start_date=2024-01-01&end_date=2024-12-31
 └─┬─┘   └────────┬────────┘ └────────────┬──────────────┘ └──────────────────┬─────────────────────┘
@@ -131,6 +137,12 @@ Create `day08/requests_basics.py`.
 
 ### Example 1 — Inspecting a response
 
+> **Question it answers:** Did my request to the Bank of Canada succeed, what format came back, and how long did it take?
+>
+> **Other questions you can answer the same way:**
+> - Is the API up right now?
+> - Why did my download return nothing?
+
 ```python
 import requests
 
@@ -148,6 +160,12 @@ print("First 300 characters:\n", r.text[:300])
 
 ### Example 2 — Let `requests` build the query string
 
+> **Question it answers:** How many overnight-rate observations are there between January and June 2025?
+>
+> **Other questions you can answer the same way:**
+> - How do I download any series for a chosen date range?
+> - What URL did my script actually call?
+
 Gluing strings together is error-prone. Pass parameters as a dictionary instead:
 
 ```python
@@ -162,6 +180,11 @@ print(len(data["observations"]), "observations")
 
 ### Example 3 — Always use a timeout
 
+> **Question it answers:** How do I stop my script from waiting forever when a server doesn't answer?
+>
+> **Other questions you can answer the same way:**
+> - How long should my pipeline wait before giving up on a source?
+
 Without `timeout`, a hung server can freeze your script **forever**.
 
 ```python
@@ -171,6 +194,11 @@ r = requests.get(base, params={"recent": 1}, timeout=20)   # seconds
 > **Habit:** every `requests` call gets a `timeout`. No exceptions.
 
 ### Example 4 — Turning bad statuses into errors
+
+> **Question it answers:** How do I make my script stop with a clear message when I request a series that doesn't exist?
+>
+> **Other questions you can answer the same way:**
+> - Did the request fail because of me (4xx) or the server (5xx)?
 
 ```python
 bad = requests.get(
@@ -205,6 +233,11 @@ Create `day08/json_explore.py`.
 
 ### Example 1 — Pretty-printing
 
+> **Question it answers:** What does the Bank of Canada's JSON response actually look like?
+>
+> **Other questions you can answer the same way:**
+> - What fields does a new API return?
+
 ```python
 import json
 import requests
@@ -218,6 +251,11 @@ print(json.dumps(payload, indent=2))
 ```
 
 ### Example 2 — Exploring an unknown structure, one level at a time
+
+> **Question it answers:** Where in the response are the dates, the values and the series description?
+>
+> **Other questions you can answer the same way:**
+> - How is a new API's response organised before I write any parsing code?
 
 With a new API, work out the shape before writing any parsing code:
 
@@ -235,6 +273,11 @@ print(payload["seriesDetail"])       # metadata: label, description, dimension
 
 ### Example 3 — Navigating nested values
 
+> **Question it answers:** What was the latest overnight rate, on which date, and what is the series' official label?
+>
+> **Other questions you can answer the same way:**
+> - How do I pull one value out of a nested response?
+
 ```python
 obs = payload["observations"][-1]
 date = obs["d"]
@@ -247,6 +290,11 @@ print(type(value))                   # str — numbers arrive as text (Day 1!)
 
 ### Example 4 — Safe navigation with `.get`
 
+> **Question it answers:** How do I read a value without crashing when a field is missing?
+>
+> **Other questions you can answer the same way:**
+> - What should my code do when an observation has no value?
+
 Real responses sometimes lack a key. Chained `.get` calls with defaults never crash:
 
 ```python
@@ -257,6 +305,11 @@ print(weird.get("V39079", {}).get("v", ""))        # "" instead of a KeyError
 This is the exact pattern in the notebook's `boc_fetch`: `val = o.get(series, {})`.
 
 ### Example 5 — Saving and reloading raw JSON
+
+> **Question it answers:** How do I keep an exact copy of what the API returned, so I can re-check it later?
+>
+> **Other questions you can answer the same way:**
+> - What did the API send on a particular day?
 
 ```python
 import os
@@ -312,6 +365,12 @@ Useful query parameters: `start_date`, `end_date` (`YYYY-MM-DD`) and `recent` (l
 
 ### Example 1 — Searching the series catalogue
 
+> **Question it answers:** Which Bank of Canada series codes relate to a topic such as "overnight" or "CPI"?
+>
+> **Other questions you can answer the same way:**
+> - What is the code for the 10-year bond yield?
+> - How many series does the Bank publish?
+
 How did the notebook authors know `V39079` is the overnight rate? They searched the catalogue:
 
 ```python
@@ -335,6 +394,11 @@ Try other keywords: `"CPI"`, `"USD"`, `"10 year"`.
 
 ### Example 2 — Several series in one request
 
+> **Question it answers:** What are the latest 2-, 5- and 10-year Government of Canada yields, in one request?
+>
+> **Other questions you can answer the same way:**
+> - How do I download several related series together?
+
 ```python
 codes = ["BD.CDN.2YR.DQ.YLD", "BD.CDN.5YR.DQ.YLD", "BD.CDN.10YR.DQ.YLD"]
 r = requests.get(f"{BASE}/observations/{','.join(codes)}/json",
@@ -347,6 +411,11 @@ print(p["observations"][-1])     # one date, all three series
 ```
 
 ### Example 3 — A whole group (as in the notebook's Module 08)
+
+> **Question it answers:** Which series belong to the benchmark bond-yields group, and what are their labels?
+>
+> **Other questions you can answer the same way:**
+> - How do I download a whole family of related series at once?
 
 ```python
 r = requests.get(f"{BASE}/observations/group/BOND_YIELDS_BENCHMARK/json",
@@ -361,6 +430,12 @@ for code, info in g["seriesDetail"].items():
 
 ### Example 4 — Series metadata
 
+> **Question it answers:** What does series V39079 measure, and in which units and frequency?
+>
+> **Other questions you can answer the same way:**
+> - Is this series daily or monthly?
+> - What is its official description?
+
 ```python
 r = requests.get(f"{BASE}/series/V39079/json", timeout=20)
 print(json.dumps(r.json(), indent=2)[:800])
@@ -371,6 +446,11 @@ print(json.dumps(r.json(), indent=2)[:800])
 ---
 
 ## 8.5 From JSON to a Tidy DataFrame (20 min)
+
+> **Question it answers:** How do I turn the Bank's wide JSON (one date, many series) into a tidy table with one row per date and series?
+>
+> **Other questions you can answer the same way:**
+> - How do I prepare several series for grouping, plotting or saving?
 
 Valet responses are **wide**: each observation holds one date and several series. We want a **long** (tidy) table with one row per date and series. Long format is how databases and dbt (Days 31–40) prefer data.
 
@@ -429,6 +509,12 @@ Notice the separation: **fetching** (network) and **parsing** (pure data transfo
 ---
 
 ## 8.6 Mini-Project: A Reusable `fetch_valet` Function (15 min)
+
+> **Question it answers:** What is the history of any Bank of Canada series (or several), for any date range, with one function call?
+>
+> **Other questions you can answer the same way:**
+> - What were all benchmark yields over the past year?
+> - What was the exchange rate in 2020?
 
 Create `day08/boc_fetch.py` with a function:
 
@@ -521,6 +607,12 @@ The notebook uses FRED's **graph CSV** endpoint. It needs no key and returns pla
 
 ### Example 1 — Look before you parse
 
+> **Question it answers:** What format does FRED return, and what do its first lines look like?
+>
+> **Other questions you can answer the same way:**
+> - Is the response CSV or HTML?
+> - What are the column headers?
+
 ```python
 import requests
 
@@ -533,6 +625,11 @@ print(r.text[:200])
 ```
 
 ### Example 2 — CSV text → DataFrame without saving a file
+
+> **Question it answers:** How do I turn FRED's CSV text into a clean table of dates and numeric values?
+>
+> **Other questions you can answer the same way:**
+> - How do I handle FRED's "." for missing values?
 
 `io.StringIO` wraps text so pandas can read it as if it were a file:
 
@@ -560,6 +657,11 @@ The output has the same three columns as `parse_valet`. **One schema for every s
 
 ### Example 3 — Several series
 
+> **Question it answers:** What date range and how many observations do the Fed funds rate, WTI oil and the Canadian interest-rate series each have?
+>
+> **Other questions you can answer the same way:**
+> - How do I download a list of FRED series into one table?
+
 ```python
 frames = []
 for sid in ["FEDFUNDS", "DCOILWTICO", "CANLOLITOAASTSAM"]:
@@ -585,6 +687,11 @@ Code is committed to GitHub, and anything committed is effectively public foreve
 
 ### Option A — Codespaces secrets (recommended)
 
+> **Question it answers:** How do I store my FRED API key so it never appears in my code or on GitHub?
+>
+> **Other questions you can answer the same way:**
+> - Is my key available in this environment?
+
 1. On GitHub: **Settings → Codespaces → Secrets → New secret**.
 2. Name: `FRED_API_KEY`. Value: your key. Repository access: `macro-data-course`.
 3. Restart your Codespace. The secret now exists as an environment variable.
@@ -595,6 +702,11 @@ echo ${FRED_API_KEY:0:4}...      # prints only the first 4 characters
 
 ### Option B — A local `.env` file
 
+> **Question it answers:** How do I keep an API key in a private file that Git ignores?
+>
+> **Other questions you can answer the same way:**
+> - How do I make sure secrets are never committed?
+
 ```bash
 pip install python-dotenv
 echo 'FRED_API_KEY=paste_your_key_here' > .env
@@ -603,6 +715,11 @@ pip freeze > requirements.txt
 ```
 
 ### Reading the key in Python
+
+> **Question it answers:** How does my script read the API key, and fail clearly if it's missing?
+>
+> **Other questions you can answer the same way:**
+> - Why does my script say the key is not set?
 
 ```python
 import os
@@ -615,6 +732,11 @@ if not key:
 ```
 
 ### Using the official endpoint
+
+> **Question it answers:** What does the official FRED API return for a series, including how missing values are marked?
+>
+> **Other questions you can answer the same way:**
+> - How do I request a specific date range or frequency from FRED?
 
 Create `day09/fred_api.py`:
 
@@ -653,6 +775,11 @@ Pipelines fail at 3 a.m. for boring reasons. Let's cause each failure on purpose
 
 ### Failure 1 — Wrong series ID (HTTP error)
 
+> **Question it answers:** What happens when I request a series that doesn't exist, and how do I catch it?
+>
+> **Other questions you can answer the same way:**
+> - Which series in my list have wrong codes?
+
 ```python
 import requests
 
@@ -667,6 +794,11 @@ except requests.HTTPError as e:
 
 ### Failure 2 — The server is too slow (timeout)
 
+> **Question it answers:** What happens when the server takes too long to answer?
+>
+> **Other questions you can answer the same way:**
+> - How do I recognise a timeout in my logs?
+
 ```python
 try:
     requests.get("https://www.bankofcanada.ca/valet/lists/series/json",
@@ -677,6 +809,11 @@ except requests.Timeout as e:
 
 ### Failure 3 — The host doesn't exist (connection error)
 
+> **Question it answers:** What happens when the address is wrong or the network is down?
+>
+> **Other questions you can answer the same way:**
+> - Is the problem my connection or the data source?
+
 ```python
 try:
     requests.get("https://www.bankofcanada-typo.ca/valet", timeout=10)
@@ -685,6 +822,11 @@ except requests.ConnectionError as e:
 ```
 
 ### Failure 4 — The response isn't what you expected
+
+> **Question it answers:** What happens when the response is in a different format from the one I expected?
+>
+> **Other questions you can answer the same way:**
+> - Why does .json() fail on this response?
 
 ```python
 r = requests.get("https://www.bankofcanada.ca/valet/observations/V39079/csv",
@@ -705,6 +847,11 @@ requests.RequestException          ← catches all of the below
 ```
 
 ### Handling them deliberately
+
+> **Question it answers:** How do I give a clear, specific message for each kind of download failure?
+>
+> **Other questions you can answer the same way:**
+> - Which sources failed today, and why?
 
 ```python
 def safe_get(url, **kwargs):
@@ -733,6 +880,11 @@ def safe_get(url, **kwargs):
 Temporary failures (timeouts, 5xx, 429) often succeed a few seconds later. **Exponential backoff** means waiting longer after each failure (1 s, 2 s, 4 s…) so you don't hammer a struggling server.
 
 ### Version 1 — Hand-written, so you see the logic
+
+> **Question it answers:** How do I automatically retry a request that failed temporarily, waiting longer each time?
+>
+> **Other questions you can answer the same way:**
+> - Will my pipeline survive a brief server outage?
 
 Create `day09/retries.py`:
 
@@ -766,6 +918,11 @@ print(r.status_code)
 ```
 
 ### Version 2 — The professional way: a `Session` with automatic retries
+
+> **Question it answers:** How do I make every request retry automatically on temporary errors, without writing the loop myself?
+>
+> **Other questions you can answer the same way:**
+> - How do I apply the same retry rules to all my sources?
 
 `requests` can retry for you through `urllib3`, which is already installed as a dependency:
 
@@ -810,6 +967,12 @@ Orchestrators like Prefect (Days 54–57) add retries at the **task** level on t
 
 ### A successful request can still contain bad data
 
+> **Question it answers:** Even when the download "succeeds", are the required columns present, are there enough rows, and are dates unique?
+>
+> **Other questions you can answer the same way:**
+> - Did FRED return an empty file?
+> - Are there duplicate dates in this download?
+
 A `200 OK` response might be empty, be missing columns, or have duplicated dates. Validate before passing data on. Create `day09/validation.py`:
 
 ```python
@@ -837,6 +1000,12 @@ Compare with Day 7's `check_panel`: same idea, applied at the **extraction** sta
 
 ### Logging instead of `print`
 
+> **Question it answers:** How do I record what my pipeline did, when, and how serious each problem was?
+>
+> **Other questions you can answer the same way:**
+> - When did the last successful fetch happen?
+> - Which warnings appeared in last night's run?
+
 `print` is fine for exercises. Pipelines use **logging**, which adds timestamps and severity levels and can write to files:
 
 ```python
@@ -862,6 +1031,12 @@ log.error("NOT_A_REAL_SERIES: HTTP 404")
 
 ## 9.6 The Raw Landing Zone + Mini-Project (20 min)
 
+> **Question it answers:** How do I save every untouched response, stamped with the time it was fetched?
+>
+> **Other questions you can answer the same way:**
+> - What exactly did FRED send last Tuesday?
+> - Can I re-parse old downloads after fixing a bug?
+
 Professional pipelines **save the untouched response before parsing it**. If your parser has a bug, you fix it and re-parse without re-downloading. You also keep a record of exactly what the agency published on a given day, which matters because macro data gets **revised**.
 
 ```
@@ -886,6 +1061,11 @@ def save_raw(content, source, series_id, extension):
 ```
 
 ### Mini-project
+
+> **Question it answers:** How do I fetch any FRED series robustly: retrying, validating, logging and saving the raw file?
+>
+> **Other questions you can answer the same way:**
+> - Which series failed validation in today's run?
 
 Create `day09/fred_robust.py` with `fetch_fred(series_id, session, start="2006-01-01")` that:
 
@@ -1007,6 +1187,11 @@ These WDS endpoints use **POST** with a JSON body: a list of requests. Create `d
 
 ### Example 1 — Verify vectors via their metadata
 
+> **Question it answers:** Do StatCan vectors 41690973 and 2062815 really measure all-items CPI and the unemployment rate?
+>
+> **Other questions you can answer the same way:**
+> - What does a given StatCan vector measure, and how often is it updated?
+
 ```python
 import requests
 
@@ -1031,6 +1216,11 @@ for item in r.json():
 
 ### Example 2 — Fetch the latest *n* periods
 
+> **Question it answers:** What were the last 24 months of CPI and the unemployment rate?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest value of any StatCan vector?
+
 ```python
 body = [{"vectorId": v, "latestN": 24} for v in vectors]
 r = requests.post(f"{WDS}/getDataFromVectorsAndLatestNPeriods", json=body, timeout=30)
@@ -1043,6 +1233,11 @@ print(first["vectorDataPoint"][-1])     # refPer (reference period), value, ...
 ```
 
 ### Example 3 — Parse into our standard long format
+
+> **Question it answers:** How do I turn StatCan's vector response into the same tidy table as the other sources?
+>
+> **Other questions you can answer the same way:**
+> - How do I combine StatCan, BoC and FRED data in one table?
 
 ```python
 import pandas as pd
@@ -1094,6 +1289,11 @@ print(f"{yoy.iloc[-1]:.1f}% ({yoy.index[-1]:%b %Y})")
 ---
 
 ## 10.3 Full-Table Downloads, Done Efficiently (23 min)
+
+> **Question it answers:** How do I download a whole StatCan table (all CPI components for all provinces) only when it has changed?
+>
+> **Other questions you can answer the same way:**
+> - Has StatCan released new data since my last download?
 
 Sometimes you need the whole table, e.g. all CPI components for all provinces. Let's improve the notebook's `statcan_fetch` in three ways:
 
@@ -1185,6 +1385,11 @@ touch macro_extract/__init__.py
 
 ### `macro_extract/net.py` — one shared, polite, retrying session
 
+> **Question it answers:** How do all my data sources share the same retry and timeout rules?
+>
+> **Other questions you can answer the same way:**
+> - Where do I change the retry policy once for every source?
+
 ```python
 """Shared HTTP session with retries (Day 9)."""
 import requests
@@ -1205,6 +1410,11 @@ def make_session(retries=4, backoff=1.0):
 > We call this module `net.py`, not `http.py`, because Python already has a built-in module named `http`. Avoid naming your files after standard modules (`http`, `json`, `csv`, `io`...).
 
 ### `macro_extract/schema.py` — one output format for every source
+
+> **Question it answers:** How do I make sure every source produces the same columns and types?
+>
+> **Other questions you can answer the same way:**
+> - Does every source's output pass the same basic checks?
 
 ```python
 """Standard long schema shared by all sources, plus validation."""
@@ -1236,6 +1446,11 @@ def validate(df, label, min_rows=1):
 
 ### `macro_extract/rawstore.py` — the landing zone
 
+> **Question it answers:** Where and how is every raw response saved, regardless of source?
+>
+> **Other questions you can answer the same way:**
+> - Where do I find yesterday's raw BoC file?
+
 ```python
 """Save untouched API responses under data/raw/ (Day 9.6)."""
 import os
@@ -1253,6 +1468,11 @@ def save_raw(content, source, series_id, extension, root="data/raw"):
 ```
 
 ### `macro_extract/boc.py`
+
+> **Question it answers:** How does the pipeline fetch, save and standardise any Bank of Canada series?
+>
+> **Other questions you can answer the same way:**
+> - How do I add another BoC series to the pipeline?
 
 ```python
 """Bank of Canada Valet API."""
@@ -1288,6 +1508,11 @@ The dot in `from .schema import ...` means "from this same package". That's a **
 
 ### `macro_extract/fred.py`
 
+> **Question it answers:** How does the pipeline fetch, save and standardise any FRED series?
+>
+> **Other questions you can answer the same way:**
+> - How do I add another US indicator?
+
 ```python
 """FRED graph CSV endpoint (no key required)."""
 import io
@@ -1316,6 +1541,11 @@ def fetch(series_id, session, start="2006-01-01"):
 ```
 
 ### `macro_extract/statcan.py`
+
+> **Question it answers:** How does the pipeline fetch, save and standardise any StatCan vector?
+>
+> **Other questions you can answer the same way:**
+> - How do I add another Canadian indicator?
 
 ```python
 """Statistics Canada WDS: vector endpoint."""
@@ -1358,6 +1588,11 @@ def fetch(series_id, session, latest_n=250):
 
 ### `macro_extract/catalog.py` — *what* to fetch, separate from *how*
 
+> **Question it answers:** Which series does the pipeline fetch, from which source, and under what names?
+>
+> **Other questions you can answer the same way:**
+> - How do I add a new series without touching the download code?
+
 ```python
 """Series catalogue: add a row here to add a series to the pipeline."""
 
@@ -1378,6 +1613,12 @@ CATALOG = [
 > Separating **configuration** (which series) from **code** (how to fetch) is a core data-engineering idea. `dlt` sources (Days 21–30) and dbt `sources.yml` (Days 31+) are built on it.
 
 ### `run_extract.py` (repository root) — one command for everything
+
+> **Question it answers:** How do I refresh every series in the catalogue with one command, and see which ones succeeded or failed?
+>
+> **Other questions you can answer the same way:**
+> - Is today's data complete?
+> - How long did the refresh take?
 
 ```python
 """Run all extractions in the catalogue and write one tidy staging file.
@@ -1445,6 +1686,11 @@ if __name__ == "__main__":
 ---
 
 ## 10.5 Testing Parsers with `pytest` (18 min)
+
+> **Question it answers:** Do my parsers still turn sample responses into the right tables, without calling the internet?
+>
+> **Other questions you can answer the same way:**
+> - Did a code change break the FRED or BoC parsing?
 
 Because parsing is separate from fetching, we can test parsers with small hand-made inputs, with **no internet** needed. That makes tests fast and reliable.
 
@@ -1545,6 +1791,11 @@ def test_valet_multiple_series():
 
 ## 10.6 Run It End-to-End, Recap, and Look Ahead (10 min)
 
+> **Question it answers:** Do all tests pass, and does the full extraction produce the staging file?
+>
+> **Other questions you can answer the same way:**
+> - Is the pipeline ready for Module 2?
+
 ```bash
 python -m pytest -q
 python run_extract.py
@@ -1581,6 +1832,11 @@ print(wide.tail())
 | *(none)* | raw landing zone, schema validation, unit tests, catalogue config |
 
 ### Looking ahead: Days 11–20
+
+> **Question it answers:** For each series in the staging file, how many observations are there and what is the latest date?
+>
+> **Other questions you can answer the same way:**
+> - Which series are out of date?
 
 Your pipeline now writes one tidy, long Parquet file. On **Day 11** you'll query it directly with **DuckDB**, an analytical SQL database that reads Parquet without any import step:
 

@@ -104,6 +104,12 @@ pip freeze > requirements.txt
 
 ### Step 2 — Your first queries
 
+> **Question it answers:** Is DuckDB installed and working? Can it do simple arithmetic and return today's date?
+>
+> **Other questions you can answer the same way:**
+> - What is 2.25% + 0.25 percentage points?
+> - How many days are left until the next Bank of Canada announcement?
+
 Start DuckDB **in memory** (nothing is saved):
 
 ```bash
@@ -156,6 +162,12 @@ Anything you create is now saved to that file and will still be there next time.
 ---
 
 ## 11.2 Tables: `CREATE TABLE` and `INSERT` (20 min)
+
+> **Question it answers:** How do I store a small, typed table of provincial fiscal balances so I can query it again and again?
+>
+> **Other questions you can answer the same way:**
+> - How do I record the Bank of Canada's rate decisions by hand?
+> - How do I keep a small lookup table of provinces and regions?
 
 A **table** is a DataFrame with a fixed schema: every column has a name and a declared type. Create `day11/provinces.sql`:
 
@@ -245,6 +257,12 @@ Create `day11/select_basics.sql` and try each query in turn.
 
 ### Example 1 — Choosing columns (projection)
 
+> **Question it answers:** What is each province's fiscal balance, in % of GDP and also in basis points?
+>
+> **Other questions you can answer the same way:**
+> - What are the dates and rates only, without the other columns?
+> - What is each value converted to another unit (%, bp, $ billions)?
+
 ```sql
 SELECT province, balance_pct_gdp FROM provinces;
 
@@ -255,6 +273,13 @@ FROM provinces;
 ```
 
 ### Example 2 — Choosing rows (filtering)
+
+> **Question it answers:** Which provinces ran a surplus? Which Atlantic provinces ran a deficit?
+>
+> **Other questions you can answer the same way:**
+> - Which months had inflation above 3%?
+> - Which observations fall inside a given date range?
+> - Which provinces are in the West or the Prairies?
 
 ```sql
 SELECT * FROM provinces WHERE balance_pct_gdp > 0;
@@ -278,6 +303,12 @@ WHERE balance_pct_gdp BETWEEN -1.0 AND -0.5;        -- inclusive at both ends
 
 ### Example 3 — Missing values need `IS NULL`
 
+> **Question it answers:** Which rate decisions have no explanatory note recorded?
+>
+> **Other questions you can answer the same way:**
+> - Which months are missing a CPI value?
+> - Which series have gaps that need filling before analysis?
+
 ```sql
 SELECT * FROM boc_decisions WHERE note IS NULL;
 SELECT * FROM boc_decisions WHERE note IS NOT NULL;
@@ -288,12 +319,24 @@ SELECT * FROM boc_decisions WHERE note = NULL;      -- returns zero rows
 
 ### Example 4 — Text patterns
 
+> **Question it answers:** Which decisions mention a "hike" (or a "cut") in their note?
+>
+> **Other questions you can answer the same way:**
+> - Which CPI components contain the word "energy"?
+> - Which StatCan geographies start with "Canada"?
+
 ```sql
 SELECT * FROM boc_decisions WHERE note LIKE '%hike%';     -- % = any characters
 SELECT * FROM boc_decisions WHERE note ILIKE '%CUT%';     -- ILIKE ignores case
 ```
 
 ### Example 5 — Sorting and limiting
+
+> **Question it answers:** Which provinces have the weakest budget balance? What are the top 3?
+>
+> **Other questions you can answer the same way:**
+> - What were the five highest inflation readings?
+> - What are the most recent ten observations?
 
 ```sql
 SELECT * FROM provinces ORDER BY balance_pct_gdp;               -- worst first
@@ -302,6 +345,12 @@ SELECT * FROM provinces ORDER BY region, balance_pct_gdp;       -- two keys
 ```
 
 ### Example 6 — Unique values
+
+> **Question it answers:** Which regions appear in the table?
+>
+> **Other questions you can answer the same way:**
+> - Which series, provinces or CPI components does this dataset contain?
+> - Which years are covered?
 
 ```sql
 SELECT DISTINCT region FROM provinces ORDER BY region;
@@ -342,6 +391,12 @@ LIMIT 3;
 
 ### Example 1 — Policy stance
 
+> **Question it answers:** Was monetary policy stimulative, neutral or restrictive at each decision date?
+>
+> **Other questions you can answer the same way:**
+> - Was inflation below, inside or above the 1–3% target band each month?
+> - Is each quarter an expansion or a contraction?
+
 ```sql
 SELECT decision_date,
        rate,
@@ -358,6 +413,12 @@ As in Python, conditions are checked **top to bottom** and the first match wins.
 
 ### Example 2 — Direction of each decision
 
+> **Question it answers:** Was each Bank of Canada decision a hike, a cut or a hold?
+>
+> **Other questions you can answer the same way:**
+> - Did unemployment rise, fall or stay flat each month?
+> - Was each CPI release an upside or a downside surprise?
+
 ```sql
 SELECT decision_date,
        change_bp,
@@ -370,6 +431,12 @@ FROM boc_decisions;
 ```
 
 ### Example 3 — Replacing missing values with `COALESCE`
+
+> **Question it answers:** How do I show a placeholder instead of an empty note?
+>
+> **Other questions you can answer the same way:**
+> - How do I fall back to a preliminary value when the final one is missing?
+> - How do I treat a missing count as zero?
 
 ```sql
 SELECT decision_date,
@@ -416,6 +483,12 @@ ORDER BY balance_pct_gdp DESC;
 
 ### Converting types
 
+> **Question it answers:** How do I turn text such as '2.25' into a number, without crashing on values like 'Bank holiday'?
+>
+> **Other questions you can answer the same way:**
+> - How many values in a raw download are not valid numbers?
+> - How do I convert a text date column to a real DATE?
+
 ```sql
 SELECT CAST('2.25' AS DOUBLE) + 1;          -- 3.25
 SELECT '2.25'::DOUBLE + 1;                  -- shorthand, same result
@@ -427,6 +500,13 @@ SELECT TRY_CAST('Bank holiday' AS DOUBLE);  -- NULL — no error
 `TRY_CAST` is SQL's version of `pd.to_numeric(errors="coerce")`. We rely on it on Day 13 to clean raw BoC files.
 
 ### Working with dates
+
+> **Question it answers:** How many days or months passed between two rate decisions? Which year, month and quarter does a date fall in?
+>
+> **Other questions you can answer the same way:**
+> - How do I convert monthly dates to quarters to match GDP?
+> - What date is three months after a decision?
+> - How do I label a date as "June 2024"?
 
 ```sql
 SELECT DATE '2024-06-05' - DATE '2023-07-12' AS days_between;       -- 329
@@ -453,6 +533,12 @@ FROM boc_decisions;
 
 ### Example 1 — Whole-table summaries
 
+> **Question it answers:** How many decisions were there, what were the lowest, highest and average rates, and what was the net change?
+>
+> **Other questions you can answer the same way:**
+> - What is the average inflation rate over the sample?
+> - How many observations does each dataset contain?
+
 ```sql
 SELECT COUNT(*)                 AS n_decisions,
        MIN(rate)                AS min_rate,
@@ -463,6 +549,12 @@ FROM boc_decisions;
 ```
 
 ### Example 2 — Per-group summaries
+
+> **Question it answers:** Year by year, how many decisions were there and what was the net change in basis points?
+>
+> **Other questions you can answer the same way:**
+> - What was average unemployment by province?
+> - What was the peak inflation rate each year?
 
 ```sql
 SELECT year(decision_date) AS yr,
@@ -480,6 +572,12 @@ This is `df.groupby(df["date"].dt.year).agg(...)` from Day 6.
 
 ### Example 3 — Counting within a group with a condition
 
+> **Question it answers:** In each year, how many decisions were hikes, cuts and holds?
+>
+> **Other questions you can answer the same way:**
+> - In each year, how many months was inflation above target?
+> - How many quarters of negative growth did each decade have?
+
 ```sql
 SELECT year(decision_date)                   AS yr,
        COUNT(*) FILTER (WHERE change_bp > 0) AS hikes,
@@ -491,6 +589,12 @@ ORDER BY yr;
 ```
 
 ### Example 4 — Filtering groups with `HAVING`
+
+> **Question it answers:** Which regions have a negative average budget balance?
+>
+> **Other questions you can answer the same way:**
+> - Which provinces had average unemployment above 7%?
+> - Which years had more than two rate cuts?
 
 `WHERE` filters **rows before** grouping; `HAVING` filters **groups after** aggregation.
 
@@ -507,6 +611,12 @@ ORDER BY avg_balance;
 ---
 
 ## 11.7 Mini-Project: The BoC Decision Log (10 min)
+
+> **Question it answers:** How many hikes, cuts and holds were there, and how much tightening and easing happened in each cycle?
+>
+> **Other questions you can answer the same way:**
+> - How much did policy ease in total since the peak?
+> - Which year had the most decisions?
 
 Create `day11/decision_log.sql` answering:
 
@@ -618,6 +728,12 @@ Remember Day 10's `validate()`, which rejected duplicate `(series_id, date)` row
 
 ### Constraints: let the database enforce the rules
 
+> **Question it answers:** How do I stop duplicate province-months or impossible unemployment rates from entering the table?
+>
+> **Other questions you can answer the same way:**
+> - How do I guarantee one row per series per date?
+> - How do I reject negative prices or rates above 100%?
+
 Create `day12/constraints.sql`:
 
 ```sql
@@ -646,6 +762,12 @@ Relational algebra describes queries as operations that take tables in and retur
 
 ### Selection σ — keep rows meeting a condition
 
+> **Question it answers:** Which provinces are in deficit?
+>
+> **Other questions you can answer the same way:**
+> - Which months had a rate above 4%?
+> - Which rows meet a policy rule?
+
 **σ**<sub>balance < 0</sub>(provinces)
 
 ```sql
@@ -653,6 +775,11 @@ SELECT * FROM provinces WHERE balance_pct_gdp < 0;
 ```
 
 ### Projection π — keep certain columns
+
+> **Question it answers:** What is each province's balance, without the other columns?
+>
+> **Other questions you can answer the same way:**
+> - Which columns does a chart actually need?
 
 **π**<sub>province, balance</sub>(provinces)
 
@@ -669,6 +796,11 @@ SELECT DISTINCT region FROM provinces;   -- 4 rows  (a true set)
 
 ### Rename ρ — rename columns or tables
 
+> **Question it answers:** How do I give a long column a short, readable name?
+>
+> **Other questions you can answer the same way:**
+> - How do I label output columns for a report?
+
 **ρ**<sub>bal ← balance_pct_gdp</sub>(provinces)
 
 ```sql
@@ -676,6 +808,11 @@ SELECT province, balance_pct_gdp AS bal FROM provinces AS p;
 ```
 
 ### Composition — operations nest
+
+> **Question it answers:** Which provinces are in the Atlantic region (names only)?
+>
+> **Other questions you can answer the same way:**
+> - Which dates had a rate cut (dates only)?
 
 **π**<sub>province</sub>(**σ**<sub>region='Atlantic'</sub>(provinces))
 
@@ -686,6 +823,12 @@ SELECT province FROM provinces WHERE region = 'Atlantic';
 ```
 
 ### Aggregation γ (an extension to the original algebra)
+
+> **Question it answers:** What is the average fiscal balance in each region?
+>
+> **Other questions you can answer the same way:**
+> - What is average inflation per year?
+> - How many decisions per year?
 
 **γ**<sub>region; AVG(balance)</sub>(provinces)
 
@@ -730,6 +873,12 @@ Result: AB, SK.
 
 ## 12.3 Set Operations: ∪, ∩, − (23 min)
 
+> **Question it answers:** Which provinces ran a surplus in 2025, and which in 2026?
+>
+> **Other questions you can answer the same way:**
+> - Which series appear in both the old and new extracts?
+> - Which provinces changed status between two years?
+
 Set operations combine two tables **with the same columns**. Create `day12/sets.sql`:
 
 ```sql
@@ -743,6 +892,12 @@ INSERT INTO surplus_2025 VALUES ('AB'), ('SK'), ('QC');
 
 ### Union ∪ — in either year
 
+> **Question it answers:** Which provinces ran a surplus in at least one of the two years?
+>
+> **Other questions you can answer the same way:**
+> - How do I stack BoC and FRED observations into one table?
+> - Which series appear in either extract?
+
 ```sql
 SELECT province FROM surplus_2025
 UNION                                   -- removes duplicates (a true set union)
@@ -755,6 +910,12 @@ SELECT province FROM surplus_2026;
 
 ### Intersection ∩ — in both years
 
+> **Question it answers:** Which provinces ran a surplus in both years?
+>
+> **Other questions you can answer the same way:**
+> - Which months are present in both the CPI and the labour data?
+> - Which series are in both the old and new catalogues?
+
 ```sql
 SELECT province FROM surplus_2025
 INTERSECT
@@ -762,6 +923,12 @@ SELECT province FROM surplus_2026;
 ```
 
 ### Difference − — in one but not the other
+
+> **Question it answers:** Which provinces lost their surplus, and which newly gained one?
+>
+> **Other questions you can answer the same way:**
+> - Which series disappeared from the latest extract?
+> - Which months are in the BoC data but missing from FRED?
 
 ```sql
 -- Lost their surplus
@@ -779,6 +946,12 @@ SELECT province FROM surplus_2025;
 
 ### A DuckDB convenience: `UNION BY NAME`
 
+> **Question it answers:** How do I stack two tables safely when their columns are in a different order?
+>
+> **Other questions you can answer the same way:**
+> - How do I combine extracts whose layout changed over time?
+> - How do I append a source that has an extra column?
+
 Standard `UNION` matches columns by **position**, which is a common source of silent bugs. DuckDB can match by **name** instead:
 
 ```sql
@@ -795,6 +968,12 @@ This is what you want when stacking extracts from several sources, as in Day 10'
 
 ### The Cartesian product × — every combination
 
+> **Question it answers:** What are all the combinations of economic scenarios and rate paths?
+>
+> **Other questions you can answer the same way:**
+> - What does every province × month grid look like (to find gaps)?
+> - Which scenario combinations should a stress test cover?
+
 ```sql
 CREATE OR REPLACE TABLE scenarios (scenario VARCHAR, gdp_growth DOUBLE);
 INSERT INTO scenarios VALUES ('Base', 1.8), ('Downside', -0.5);
@@ -808,6 +987,11 @@ SELECT * FROM scenarios CROSS JOIN rate_paths;     -- 2 × 3 = 6 rows
 Cross joins are useful for scenario grids. They're also why a join with a **missing or wrong join condition** can explode your row count.
 
 ### A join ⋈ is a product followed by a selection
+
+> **Question it answers:** How do I line up BoC and Fed rates for the same month?
+>
+> **Other questions you can answer the same way:**
+> - How do I match each CPI reading with that month's unemployment rate?
 
 **R ⋈<sub>R.k = S.k</sub> S = σ<sub>R.k = S.k</sub>(R × S)**
 
@@ -826,6 +1010,12 @@ INSERT INTO fed_monthly VALUES
 ```
 
 ### Inner join — months in **both**
+
+> **Question it answers:** In months where both rates exist, what was the BoC–Fed spread?
+>
+> **Other questions you can answer the same way:**
+> - What is the real rate (policy rate minus inflation) each month?
+> - How does GDP growth compare with employment growth by quarter?
 
 ```sql
 SELECT b.month,
@@ -846,6 +1036,12 @@ FROM boc_monthly JOIN fed_monthly USING (month);
 
 ### Left, right and full outer joins
 
+> **Question it answers:** For every BoC month, what was the Fed rate (blank if not yet published)? Which months appear in either table?
+>
+> **Other questions you can answer the same way:**
+> - Which months have CPI but no labour data yet?
+> - How do I keep all dates in a calendar even when a series is missing?
+
 ```sql
 -- Every BoC month; Fed values where available (August has none yet)
 SELECT * FROM boc_monthly LEFT JOIN fed_monthly USING (month) ORDER BY month;
@@ -864,6 +1060,12 @@ SELECT * FROM boc_monthly FULL OUTER JOIN fed_monthly USING (month) ORDER BY mon
 
 ### Semi-join and anti-join: filtering by another table
 
+> **Question it answers:** Which BoC months have matching Fed data, and which are missing it?
+>
+> **Other questions you can answer the same way:**
+> - Which series in the catalogue have no observations?
+> - Which expected months are missing from a download?
+
 A **semi-join** keeps rows of A that have a match in B, without adding B's columns. An **anti-join** keeps rows of A with **no** match. DuckDB supports both directly:
 
 ```sql
@@ -877,6 +1079,12 @@ SELECT * FROM boc_monthly ANTI JOIN fed_monthly USING (month);
 The anti-join is what Day 6's `merge(..., indicator=True)` diagnostic was doing. Here it takes one line.
 
 ### The fan-out trap: joining on a non-unique key
+
+> **Question it answers:** Why does my row count grow after a join, and how do I check for it?
+>
+> **Other questions you can answer the same way:**
+> - Did a join double-count GDP?
+> - Is my lookup table really one row per key?
 
 ```sql
 CREATE OR REPLACE TABLE regional_notes (region VARCHAR, note VARCHAR);
@@ -924,6 +1132,12 @@ Aggregating `regional_notes` to one row per region first makes `region` unique, 
 
 ## 12.5 How SQL Is Evaluated (8 min)
 
+> **Question it answers:** In which order does the database actually run my query, and what plan does it use?
+>
+> **Other questions you can answer the same way:**
+> - Why can't I use a SELECT alias in WHERE?
+> - Why is this query slow?
+
 You *write* SQL in one order, but the database *evaluates* it in another:
 
 | Written order | Logical evaluation order |
@@ -956,6 +1170,12 @@ You'll see the relational operators (filter, projection, aggregate) arranged as 
 
 ## 12.6 Subqueries (8 min)
 
+> **Question it answers:** Which provinces are below the average balance? Which decisions were taken at the peak rate?
+>
+> **Other questions you can answer the same way:**
+> - Which months had inflation above the sample average?
+> - When did the latest observation occur, and what was its value?
+
 A query's result is a table, so it can be used inside another query.
 
 ```sql
@@ -975,6 +1195,12 @@ Nested subqueries quickly become hard to read. On Days 14–17 you'll learn **Co
 ---
 
 ## 12.7 Mini-Project: A Star Schema for Macro Series (18 min)
+
+> **Question it answers:** How do I organise many economic series so that names, sources, units and values are easy to query together?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest value of every monthly series, with its unit?
+> - Which source provides the most series?
 
 Analytical databases often separate:
 - a **fact table**: many rows of measurements (`series_id`, `date`, `value`);
@@ -1099,6 +1325,12 @@ ls -lh data/raw/statcan/18100004
 
 ## 13.1 Querying Files Directly (25 min)
 
+> **Question it answers:** Can I query a CSV or Parquet file without importing it first?
+>
+> **Other questions you can answer the same way:**
+> - What is in this downloaded file?
+> - How many rows does a 1-million-row StatCan table have?
+
 This is DuckDB's superpower: **a file path can be used like a table**, with no import step. Start an in-memory session from the repository root:
 
 ```bash
@@ -1112,11 +1344,23 @@ duckdb
 
 ### Example 1 — Parquet in one line
 
+> **Question it answers:** What do the first rows of my staged observations look like?
+>
+> **Other questions you can answer the same way:**
+> - What columns does this file have?
+> - Does the file look right before I use it?
+
 ```sql
 SELECT * FROM 'data/staging/observations.parquet' LIMIT 5;
 ```
 
 ### Example 2 — Inspect before you trust
+
+> **Question it answers:** For each series, how many observations are there, and what are the first and latest dates?
+>
+> **Other questions you can answer the same way:**
+> - Is any series stale?
+> - What are the min, max and missing counts of every column?
 
 ```sql
 DESCRIBE SELECT * FROM 'data/staging/observations.parquet';
@@ -1133,6 +1377,12 @@ SUMMARIZE SELECT * FROM 'data/staging/observations.parquet';
 
 ### Example 3 — CSV files
 
+> **Question it answers:** What does the StatCan CPI CSV contain, and what types did DuckDB detect?
+>
+> **Other questions you can answer the same way:**
+> - Did the date column load as a date or as text?
+> - How many columns does the download have?
+
 ```sql
 SELECT * FROM 'data/statcan_cpi.csv' LIMIT 5;
 DESCRIBE SELECT * FROM 'data/statcan_cpi.csv';
@@ -1142,6 +1392,11 @@ DuckDB **sniffs** the CSV: it guesses the delimiter, whether there's a header, a
 
 ### Example 4 — The explicit reader functions
 
+> **Question it answers:** How do I read a file when I need to control options such as the header?
+>
+> **Other questions you can answer the same way:**
+> - How do I read a file with a semicolon delimiter or a different encoding?
+
 The short form `FROM 'file.csv'` calls these functions behind the scenes. Use them directly when you need options:
 
 ```sql
@@ -1150,6 +1405,12 @@ SELECT * FROM read_parquet('data/staging/observations.parquet') LIMIT 3;
 ```
 
 ### Example 5 — Quoting column names with spaces
+
+> **Question it answers:** What are the five most recent all-items CPI values?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest value of a given CPI component?
+> - How do I filter on a StatCan column whose name contains spaces?
 
 StatCan column names contain spaces, so wrap them in **double quotes**:
 
@@ -1188,6 +1449,11 @@ ORDER BY name;
 
 ### Case 1 — Raw BoC files with text values (from Day 4)
 
+> **Question it answers:** Why did a BoC column load as text instead of numbers?
+>
+> **Other questions you can answer the same way:**
+> - Which raw files contain non-numeric markers?
+
 ```sql
 DESCRIBE SELECT * FROM 'data/boc_overnight.csv';
 ```
@@ -1207,6 +1473,11 @@ LIMIT 5;
 
 ### Case 2 — Telling DuckDB the types yourself
 
+> **Question it answers:** How do I force the date and value columns to the types I want?
+>
+> **Other questions you can answer the same way:**
+> - How do I stop DuckDB guessing the wrong type for a column?
+
 ```sql
 SELECT *
 FROM read_csv('data/boc_cad_usd.csv',
@@ -1216,6 +1487,11 @@ LIMIT 5;
 ```
 
 ### Case 3 — FRED's changing headers
+
+> **Question it answers:** What were the latest Fed funds rates, even if FRED renamed its columns?
+>
+> **Other questions you can answer the same way:**
+> - How do I read a file whose column names change between downloads?
 
 The FRED CSV's first column may be `DATE` or `observation_date`, and the value column is named after the series. Rename columns by position with a table alias:
 
@@ -1230,6 +1506,12 @@ LIMIT 5;
 
 ### Case 4 — Many files at once with glob patterns
 
+> **Question it answers:** How many rows came from each raw FRED download?
+>
+> **Other questions you can answer the same way:**
+> - How do I combine every monthly extract into one table?
+> - Which file did a suspicious row come from?
+
 Day 10 saved one raw file per fetch under `data/raw/fred/<SERIES>/<timestamp>.csv`. A **glob** (`*`) reads them all, and `filename = true` records where each row came from:
 
 ```sql
@@ -1243,6 +1525,12 @@ ORDER BY filename;
 `union_by_name = true` lets files with different column names be stacked, like `UNION ALL BY NAME` from Day 12.
 
 ### Case 5 — The full StatCan CPI table (1M+ rows)
+
+> **Question it answers:** How large is the full StatCan CPI table, and how do I pull out the Canada all-items series?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest CPI for each province?
+> - Which components are in the table?
 
 ```sql
 SELECT COUNT(*) FROM 'data/raw/statcan/18100004/18100004.csv';
@@ -1268,6 +1556,11 @@ Note the `.timer` output: DuckDB scans over a million rows in a fraction of a se
 > If the first column name looks odd (e.g. `"﻿REF_DATE"`), the file has a hidden byte-order mark (BOM). That's the same issue the notebook fixes with `encoding="utf-8-sig"`. Recent DuckDB versions handle it automatically. If yours doesn't, run `DESCRIBE` and copy the exact column name in double quotes.
 
 ### Speed comparison with pandas (optional, 5 min)
+
+> **Question it answers:** Is DuckDB faster than pandas for reading and filtering a large StatCan file?
+>
+> **Other questions you can answer the same way:**
+> - Which tool should I use for a 1-million-row extract?
 
 Create `day13/speed_test.py`:
 
@@ -1317,6 +1610,12 @@ Analytical queries usually touch **few columns but many rows** (e.g. the average
 
 ### Example 1 — Inspecting a Parquet file
 
+> **Question it answers:** What columns, types and compression does this Parquet file use?
+>
+> **Other questions you can answer the same way:**
+> - How is a large file split into row groups?
+> - Is the file's schema what my pipeline expects?
+
 ```sql
 SELECT * FROM parquet_schema('data/staging/observations.parquet');
 SELECT row_group_id, num_values, compression
@@ -1325,6 +1624,12 @@ LIMIT 5;
 ```
 
 ### Example 2 — Writing Parquet with `COPY`
+
+> **Question it answers:** How much smaller is the CPI data saved as Parquet than as CSV?
+>
+> **Other questions you can answer the same way:**
+> - How do I save a cleaned query result for reuse?
+> - How do I export a table to share with a colleague?
 
 Convert the cleaned national CPI to Parquet and compare file sizes:
 
@@ -1346,6 +1651,11 @@ ls -lh data/raw/statcan/18100004/18100004.csv data/staging/cpi_all.parquet
 The Parquet file is typically many times smaller.
 
 ### Example 3 — Partitioned output
+
+> **Question it answers:** How do I save observations split into one folder per data source?
+>
+> **Other questions you can answer the same way:**
+> - How do I store data by year or by province so later reads are faster?
 
 Large datasets are often split into folders by a key column, called **partitioning**:
 
@@ -1394,6 +1704,11 @@ We'll use a layered structure that mirrors the rest of the course:
 
 ### Setting up
 
+> **Question it answers:** How do I separate raw, staging and marts data inside one warehouse?
+>
+> **Other questions you can answer the same way:**
+> - Where should the cleaned CPI table live, and where the final indicators?
+
 Create `sql/01_schemas.sql`:
 
 ```sql
@@ -1438,6 +1753,11 @@ SELECT COUNT(*) FROM raw.statcan_cpi;
 
 ### Tables vs views
 
+> **Question it answers:** How do I keep a saved query of policy rates that is always up to date?
+>
+> **Other questions you can answer the same way:**
+> - When should I store a result, and when should I recompute it each time?
+
 A **table** stores data. A **view** stores a *query* and runs it every time you select from it.
 
 ```sql
@@ -1459,6 +1779,11 @@ dbt calls this choice a **materialisation** (Days 31–33). You're already makin
 
 ### Appending new data with `INSERT INTO ... SELECT`
 
+> **Question it answers:** How do I add only the observations that are newer than what the warehouse already holds?
+>
+> **Other questions you can answer the same way:**
+> - How do I load this month's release without duplicating history?
+
 ```sql
 INSERT INTO raw.observations
 SELECT * FROM 'data/staging/observations.parquet'
@@ -1477,6 +1802,11 @@ Everything you've done in the CLI works from Python, and DuckDB and pandas excha
 
 ### Example 1 — Querying and getting a DataFrame back
 
+> **Question it answers:** How many observations does each series have, and what is its latest date, as a pandas DataFrame?
+>
+> **Other questions you can answer the same way:**
+> - How do I get warehouse data into Python for a chart or a model?
+
 ```python
 import duckdb
 
@@ -1494,6 +1824,11 @@ print(df)
 
 ### Example 2 — Parameters: never paste values into SQL strings
 
+> **Question it answers:** What is the full history of one series, chosen by a Python variable?
+>
+> **Other questions you can answer the same way:**
+> - How do I run the same query for each series in a list, safely?
+
 ```python
 series_name = "overnight_rate"
 
@@ -1507,6 +1842,11 @@ print(rates.tail())
 The `?` placeholder is filled safely by DuckDB. Building SQL with f-strings from user input invites errors and *SQL injection*, a classic security hole.
 
 ### Example 3 — SQL on a pandas DataFrame
+
+> **Question it answers:** Which provinces are in deficit, using SQL directly on a DataFrame?
+>
+> **Other questions you can answer the same way:**
+> - How do I filter or group an in-memory DataFrame with SQL instead of pandas?
 
 DuckDB can query a DataFrame **by its Python variable name**:
 
@@ -1530,6 +1870,11 @@ Use whichever tool expresses each step more clearly. Many analysts do heavy filt
 
 ### Example 4 — Rebuilding a Day 7 series in SQL
 
+> **Question it answers:** What is the latest year-over-year CPI inflation rate?
+>
+> **Other questions you can answer the same way:**
+> - Does my SQL result match the pandas result from Day 7?
+
 ```python
 cpi_yoy_input = con.sql("""
     SELECT month, cpi
@@ -1548,6 +1893,12 @@ Computing the YoY change *inside* SQL needs window functions. That's the first t
 ---
 
 ## 13.6 Capstone: `load_warehouse.py` (20 min)
+
+> **Question it answers:** How can anyone rebuild the whole warehouse from the raw files with one command?
+>
+> **Other questions you can answer the same way:**
+> - Is the warehouse reproducible on a new computer?
+> - What would I rerun after a fresh download?
 
 Build a script that anyone can run to recreate the warehouse from scratch, reusing your SQL files.
 
@@ -1686,6 +2037,12 @@ macro.duckdb   raw.*  (staging.*, marts.* coming soon)
 ```
 
 ### Looking ahead: Days 14–17
+
+> **Question it answers:** What was year-over-year CPI inflation each month, computed entirely in SQL?
+>
+> **Other questions you can answer the same way:**
+> - What is the 3-month moving average of inflation?
+> - When did the policy rate peak?
 
 Next you'll compute YoY inflation, moving averages and running peaks **inside SQL** with window functions:
 

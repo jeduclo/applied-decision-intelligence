@@ -20,6 +20,12 @@ You already know every SQL technique needed. These three days are about **engine
 
 ### The layered architecture we're building
 
+> **Question it answers:** Where should raw downloads, cleaned tables, economic calculations and final analysis tables each live?
+>
+> **Other questions you can answer the same way:**
+> - If a number in a dashboard looks wrong, which layer do I check first?
+> - Which table should a forecasting model read from?
+
 ```
 raw.*             exactly as downloaded (all text), nothing removed
    │
@@ -137,6 +143,11 @@ ls data/raw/statcan/*/
 
 ### Add full raw tables
 
+> **Question it answers:** How do I keep an untouched copy of every StatCan column, exactly as downloaded?
+>
+> **Other questions you can answer the same way:**
+> - Can I always go back to the original data if a cleaning step was wrong?
+
 Append to `sql/02_raw_tables.sql`:
 
 ```sql
@@ -178,6 +189,13 @@ You'll see columns you haven't used yet:
 ---
 
 ## 18.3 Profiling the Raw CPI Table (23 min)
+
+> **Question it answers:** What is really inside the raw CPI table: how many rows, which dates, geographies, components, units and status flags?
+>
+> **Other questions you can answer the same way:**
+> - Which geographies and components can I analyse?
+> - How many values are missing or suppressed?
+> - Are there several index bases?
 
 Before writing staging logic, **profile**: understand what's really in the data. Create `day18/profile_cpi.sql`.
 
@@ -255,6 +273,13 @@ If (c) returns rows, look at their `UOM`: some series are published on more than
 
 ## 18.4 Seeds: Small Reference Tables (25 min)
 
+> **Question it answers:** How do I store information no API provides, such as province codes, recession dates and CPI basket weights?
+>
+> **Other questions you can answer the same way:**
+> - Which months were official recessions?
+> - What weight does shelter have in the CPI basket?
+> - Which region is each province in?
+
 Some information doesn't come from any API: province codes, the notebook's recession dates, CPI basket weights. dbt calls these hand-maintained tables **seeds**. We'll keep them in `sql/03_seeds.sql`, in a dedicated schema so they're easy to find.
 
 ```sql
@@ -323,6 +348,11 @@ CREATE SCHEMA IF NOT EXISTS intermediate;
 
 ### Documenting tables inside the database
 
+> **Question it answers:** How do I record what a table contains and where it came from, inside the database itself?
+>
+> **Other questions you can answer the same way:**
+> - Which tables have documentation, and what does it say?
+
 DuckDB stores comments with your tables so the documentation travels with the data:
 
 ```sql
@@ -337,6 +367,12 @@ WHERE comment IS NOT NULL;
 ---
 
 ## 18.5 Building `staging.stg_statcan__cpi` (20 min)
+
+> **Question it answers:** How do I turn the raw CPI download into a clean table with real dates, numeric values and standard geography codes?
+>
+> **Other questions you can answer the same way:**
+> - What is the CPI for any month, province and component, in a consistent format?
+> - Which series were terminated?
 
 Create `sql/10_stg_statcan__cpi.sql`. Notice the structure, which you'll reuse for every staging model: **source → renamed → final**.
 
@@ -405,6 +441,12 @@ Why is this a **view** and not a table? Staging is cheap to recompute from raw, 
 
 ## 18.6 Tests as Queries · A Test Runner (23 min)
 
+> **Question it answers:** Is each month × geography × component in the CPI table unique, as it should be?
+>
+> **Other questions you can answer the same way:**
+> - Are there any missing or negative CPI values?
+> - Did the latest load create duplicates?
+
 Here's a simple and powerful convention, the one dbt uses: **a test is a query that returns the rows that violate a rule. Zero rows = pass.**
 
 Create the folder `sql/tests/` and add these files. The first line of each file declares its **severity**:
@@ -463,6 +505,12 @@ HAVING MAX(month) < CAST(current_date - INTERVAL 3 MONTH AS DATE)
 > Don't end test files with a semicolon. The runner wraps each query inside another query.
 
 ### The test runner: `run_tests.py` (repository root)
+
+> **Question it answers:** Do all my data checks pass, and which ones failed?
+>
+> **Other questions you can answer the same way:**
+> - Is the warehouse safe to publish today?
+> - Which checks are errors and which are only warnings?
 
 ```python
 """run_tests.py — run every sql/tests/*.sql against macro.duckdb.
@@ -555,6 +603,12 @@ git push
 
 ## 19.1 `int_cpi__growth`: Gap-Safe Growth Rates (30 min)
 
+> **Question it answers:** What are the monthly, 3-month annualised, 6-month annualised and year-over-year inflation rates for every CPI series, with no errors from missing months?
+>
+> **Other questions you can answer the same way:**
+> - What is YoY inflation in each province?
+> - Which component has the fastest 3-month momentum?
+
 On Day 15 you had two choices: `LAG(cpi, 12)` (fast, but wrong if a month is missing) or a self-join (safe, but heavier). Here's a third technique that gets both: **lag the date too, and only compute the rate when the lagged date is exactly right.**
 
 Create `sql/20_int_cpi__growth.sql`:
@@ -607,6 +661,11 @@ Understanding the annualisation exponents:
 
 ### Check it against published figures
 
+> **Question it answers:** Do my computed CPI inflation rates match the figures StatCan published?
+>
+> **Other questions you can answer the same way:**
+> - Is my growth calculation correct for the latest month?
+
 ```sql
 .read sql/01_schemas.sql
 .read sql/20_int_cpi__growth.sql
@@ -658,6 +717,12 @@ After the gap, `naive_yoy` silently compares with the wrong month (a 13-month ch
 
 ## 19.2 Smoothing: Moving Averages and Acceleration (20 min)
 
+> **Question it answers:** Is inflation's underlying trend rising or falling once monthly noise is smoothed out?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation higher or lower than a year ago?
+> - What is the 3-month average of monthly inflation?
+
 We layer smoothing on top of growth rates in a second view, keeping each model focused.
 
 Add to `sql/20_int_cpi__growth.sql`:
@@ -708,6 +773,12 @@ Year-over-year inflation is (approximately) the sum of the last 12 monthly chang
 Next month, one new monthly change enters the window and the change from 12 months ago **drops out**. If a big increase drops out, YoY falls mechanically.
 
 ### A useful projection: next month's YoY if prices stay flat
+
+> **Question it answers:** If prices don't change next month, what will year-over-year inflation be (the base effect)?
+>
+> **Other questions you can answer the same way:**
+> - Will next month's inflation fall just because a big month drops out of the window?
+> - How much of a change in YoY is a base effect?
 
 If the index is unchanged next month (P<sub>t+1</sub> = P<sub>t</sub>), then:
 
@@ -765,6 +836,12 @@ Headline CPI is volatile (energy, food). Central banks watch **core** measures. 
 
 ### Step 1 — Find the exclusion aggregates StatCan publishes
 
+> **Question it answers:** Which "all-items excluding …" measures does StatCan publish?
+>
+> **Other questions you can answer the same way:**
+> - Is there an official measure without food and energy?
+> - Which special aggregates exist for Canada?
+
 ```sql
 SELECT DISTINCT component
 FROM staging.stg_statcan__cpi
@@ -775,6 +852,12 @@ ORDER BY component;
 You'll see aggregates such as *All-items excluding food and energy*. Use the exact labels your query returns in the next steps.
 
 ### Step 2 — A median across major components (a teaching proxy)
+
+> **Question it answers:** What is the median inflation rate across the major CPI components each month?
+>
+> **Other questions you can answer the same way:**
+> - Is headline inflation driven by a few outliers?
+> - How wide is the spread between the hottest and coolest components?
 
 ```sql
 WITH majors AS (
@@ -797,6 +880,12 @@ LIMIT 6;
 Joining to the seed table is a neat way to say "only these components". The list of components now lives in one place, not in every query.
 
 ### Step 3 — Diffusion: how broad-based is inflation?
+
+> **Question it answers:** What share of CPI components are rising faster than 3%, and what share slower than 1%?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation broad-based or concentrated?
+> - How many provinces have unemployment rising?
 
 A **diffusion index** is the share of components above a threshold. High diffusion means price pressure is broad, not driven by one or two categories.
 
@@ -821,6 +910,12 @@ LIMIT 12;
 ---
 
 ## 19.5 Contributions to Headline Inflation (20 min)
+
+> **Question it answers:** How many percentage points of headline inflation does each component contribute?
+>
+> **Other questions you can answer the same way:**
+> - How much of today's inflation is shelter?
+> - Which components pushed inflation up most in 2022?
 
 The notebook's Module 05 stacks each component's **contribution**: `yoy × weight / 100`. Let's reproduce it and quantify how far the approximation is from the headline.
 
@@ -858,6 +953,11 @@ Why the residual isn't zero:
 
 ### Pivot for charting
 
+> **Question it answers:** What were each component's contributions in recent months, laid out as columns for a stacked chart?
+>
+> **Other questions you can answer the same way:**
+> - How do I prepare contribution data for a stacked bar chart?
+
 ```sql
 WITH comp AS (
     SELECT g.month, g.component, g.yoy * w.weight_pct / 100 AS contribution_pp
@@ -873,6 +973,12 @@ LIMIT 3;
 ---
 
 ## 19.6 Mini-Project: `int_cpi__national_measures` + Tests (20 min)
+
+> **Question it answers:** Each month, what do all the national inflation measures (headline, momentum, smoothed, median, diffusion) say, side by side?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation back inside the 1–3% band on every measure?
+> - Do the core measures agree with headline?
 
 Create `sql/21_int_cpi__national_measures.sql` defining a **wide, national, monthly** view with one row per month. It should include:
 
@@ -1018,6 +1124,12 @@ git push
 
 ### Profile first
 
+> **Question it answers:** Which estimates, price bases, seasonal adjustments, units and dates does the GDP table contain?
+>
+> **Other questions you can answer the same way:**
+> - Which GDP series should I use for real growth?
+> - Is the data in millions or in another scale?
+
 ```sql
 SELECT DISTINCT "Estimates" FROM raw.statcan_gdp_full ORDER BY 1;
 SELECT DISTINCT "Prices" FROM raw.statcan_gdp_full ORDER BY 1;
@@ -1033,6 +1145,12 @@ Things to notice:
 - Quarterly `REF_DATE` looks like `2026-04`, the **first month** of the quarter (Day 7).
 
 ### `sql/11_stg_statcan__gdp.sql`
+
+> **Question it answers:** How do I turn the raw GDP download into a clean quarterly table with proper dates and numbers?
+>
+> **Other questions you can answer the same way:**
+> - What was real GDP in any quarter?
+> - What was household consumption or business investment last quarter?
 
 ```sql
 -- staging.stg_statcan__gdp
@@ -1084,6 +1202,12 @@ WHERE month(quarter) NOT IN (1, 4, 7, 10) OR day(quarter) <> 1
 ---
 
 ## 20.2 `int_gdp__growth`: Quarterly Growth Done Right (28 min)
+
+> **Question it answers:** What were real GDP growth (quarter-over-quarter, annualised and year-over-year), nominal growth and GDP-deflator inflation each quarter?
+>
+> **Other questions you can answer the same way:**
+> - How fast did the economy grow last quarter, at an annual rate?
+> - Is the GDP deflator rising faster than CPI?
 
 Create `sql/22_int_gdp__growth.sql`. Check the exact `prices` labels from your profiling and adjust the two constants if needed.
 
@@ -1192,6 +1316,12 @@ They are the most extreme quarters (the 2020 collapse and rebound, the 2008–09
 
 ## 20.3 Recession Flags: Rules of Thumb vs Dated Cycles (18 min)
 
+> **Question it answers:** Which quarters were "technical recessions" (two negative quarters in a row), and do they match the official recession dates?
+>
+> **Other questions you can answer the same way:**
+> - Did the economy contract in 2020?
+> - How often does the rule of thumb give a false alarm?
+
 A popular rule of thumb calls a **technical recession** two consecutive quarters of negative real GDP growth. Economists who date business cycles (the C.D. Howe Institute's Business Cycle Council in Canada, used by the notebook) look at depth, duration and breadth, so the two can disagree.
 
 Add to `sql/22_int_gdp__growth.sql`:
@@ -1236,6 +1366,11 @@ ORDER BY quarter;
 ---
 
 ## 20.4 Formalising the Rates Panel (20 min)
+
+> **Question it answers:** How do I turn the experimental monthly views into proper, tested staging and intermediate tables?
+>
+> **Other questions you can answer the same way:**
+> - What was each interest rate and exchange rate in each month, from one trusted table?
 
 The `scratch.monthly_*` views from Day 14 did useful work, but `scratch` is for experiments. Let's promote them properly.
 
@@ -1302,6 +1437,12 @@ Marts are **tables** (materialised), built for consumers: the dashboard layer (a
 
 ### `sql/30_macro_monthly.sql`
 
+> **Question it answers:** In each month since 2006, what were inflation, policy rates, real rates, the yield curve, oil and the exchange rate, all in one row?
+>
+> **Other questions you can answer the same way:**
+> - What was the real policy rate during the 2022 tightening?
+> - Was the yield curve inverted when inflation peaked?
+
 **Requirements:**
 - Grain: one row per month from 2006-01-01.
 - Columns: everything from `int_rates__monthly`; the key CPI measures from `int_cpi__national_measures`; `real_rate` (overnight − headline YoY) and `real_rate_core` (overnight − core ex food & energy YoY); `in_dated_recession` (month overlaps a seed band).
@@ -1356,6 +1497,12 @@ COMMENT ON TABLE marts.macro_monthly IS
 </details>
 
 ### `sql/31_macro_quarterly.sql`
+
+> **Question it answers:** In each quarter, how did GDP growth, inflation, rates and recession flags line up?
+>
+> **Other questions you can answer the same way:**
+> - What were growth and inflation in each recession quarter?
+> - Which quarters had high inflation and low growth?
 
 **Requirements:**
 - Grain: one row per quarter from 2006.
@@ -1417,6 +1564,11 @@ Why only complete quarters? If only July CPI is out, a "Q3 average" would really
 
 ### Mart tests
 
+> **Question it answers:** Does the monthly mart have exactly one row per month, and are its values sensible?
+>
+> **Other questions you can answer the same way:**
+> - Is anything missing or duplicated in the final tables before I share them?
+
 ```sql
 -- sql/tests/macro_monthly_unique.sql
 -- severity: error
@@ -1452,6 +1604,11 @@ WHERE real_rate IS NOT NULL AND ABS(real_rate) > 15
 
 ### Update `load_warehouse.py` to run every SQL file in order
 
+> **Question it answers:** How do I make the build pick up every new SQL file automatically, in the right order?
+>
+> **Other questions you can answer the same way:**
+> - Will a newly added model be built without editing the script?
+
 Replace the hard-coded list from Day 17 with:
 
 ```python
@@ -1471,6 +1628,12 @@ for table in ["macro_monthly", "macro_quarterly", "policy_cycles"]:
 ```
 
 ### `pipeline.sh`: extract → load → test
+
+> **Question it answers:** How do I refresh everything (download, build, test) with one command that stops at the first problem?
+>
+> **Other questions you can answer the same way:**
+> - Is today's data ready to use?
+> - Which step failed?
 
 ```bash
 #!/usr/bin/env bash
@@ -1493,6 +1656,11 @@ chmod +x pipeline.sh
 > **Note:** `run_extract.py` exits with code 2 when some series fail. Under `set -e` that stops the pipeline. Is that what you want? Discuss, then decide (for example, `python run_extract.py || [ $? -eq 2 ]` tolerates partial failures). Prefect (Days 51–60) gives you much finer control over exactly these decisions.
 
 ### Using the marts in the notebook
+
+> **Question it answers:** How do I load the finished monthly and quarterly tables into pandas for charts and models?
+>
+> **Other questions you can answer the same way:**
+> - How do I start an analysis from clean, tested data in one line?
 
 In the course notebook (or a new one), Cells 3–5 can now be replaced by:
 

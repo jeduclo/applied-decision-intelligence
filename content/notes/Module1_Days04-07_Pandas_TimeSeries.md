@@ -78,6 +78,11 @@ In a notebook, the last line of a cell displays automatically, so you can type `
 
 ### Step 3 — Download the course data
 
+> **Question it answers:** How do I get the Bank of Canada, FRED and StatCan files used on Days 4–7 onto my machine in one go?
+>
+> **Other questions you can answer the same way:**
+> - Which raw files will I be working with this week?
+
 Create `get_course_data.py` in the repository root. **You don't need to understand all of it yet.** On Days 8–10 we rebuild it properly. It uses the same endpoints as the course notebook.
 
 ```python
@@ -177,6 +182,11 @@ A **Series** is a column of values with labels, called the **index**. Create `da
 
 ### Example 1 — From a list
 
+> **Question it answers:** How do I turn a list of policy rates into a pandas Series?
+>
+> **Other questions you can answer the same way:**
+> - How do I start analysing a short list of values with pandas?
+
 ```python
 import pandas as pd
 
@@ -199,6 +209,12 @@ The left column is the index (0–4 by default); the right column holds the valu
 
 ### Example 2 — Built-in statistics
 
+> **Question it answers:** What were the mean, maximum and standard deviation of the policy rate?
+>
+> **Other questions you can answer the same way:**
+> - How volatile is inflation?
+> - What does a quick summary of a series look like?
+
 ```python
 print("Mean:", rates.mean())
 print("Max:", rates.max())
@@ -207,6 +223,12 @@ print(rates.describe())
 ```
 
 ### Example 3 — Vectorised arithmetic (no loops!)
+
+> **Question it answers:** What is every policy rate in basis points, and the change from one decision to the next, without writing a loop?
+>
+> **Other questions you can answer the same way:**
+> - What is each value converted to another unit?
+> - What is the real rate for every month at once?
 
 ```python
 # Day 2 way:
@@ -226,6 +248,12 @@ print(rates.diff() * 100)
 
 ### Example 4 — Meaningful labels
 
+> **Question it answers:** What was the policy rate in October 2024, looked up by date rather than by position?
+>
+> **Other questions you can answer the same way:**
+> - What was CPI in a given month?
+> - What is the first value in the series?
+
 ```python
 rates = pd.Series(
     [4.75, 4.50, 4.25, 3.75, 3.25],
@@ -238,6 +266,12 @@ print(rates.iloc[0])             # look up by position → 4.75
 ```
 
 ### Example 5 — Filtering with a condition
+
+> **Question it answers:** At which decisions was the rate above 4%?
+>
+> **Other questions you can answer the same way:**
+> - Which months had inflation above 3%?
+> - Which values exceed a threshold?
 
 ```python
 print(rates > 4.0)               # a Series of True/False
@@ -273,6 +307,11 @@ A **DataFrame** is a table: several Series sharing one index. Create `day04/firs
 
 ### Example 1 — From a dictionary of lists
 
+> **Question it answers:** How do I build a table of provinces with their fiscal balance and region?
+>
+> **Other questions you can answer the same way:**
+> - How do I store several related indicators per province in one table?
+
 We use the notebook's provincial fiscal table (FY2026, % of provincial GDP).
 
 ```python
@@ -291,6 +330,12 @@ Each dictionary key becomes a column. Every list must have the same length.
 
 ### Example 2 — First look at any DataFrame
 
+> **Question it answers:** How many rows and columns does this dataset have, what types are the columns, are values missing, and what are the basic statistics?
+>
+> **Other questions you can answer the same way:**
+> - Is this dataset what I expected before I analyse it?
+> - Which columns are text that should be numbers?
+
 Make this your routine for every new dataset:
 
 ```python
@@ -306,6 +351,11 @@ print(provinces.describe())  # statistics for numeric columns
 > Text columns may show as `object` or `str` depending on your pandas version. Both mean *text*.
 
 ### Example 3 — From a list of dictionaries (one per row)
+
+> **Question it answers:** How do I turn a list of decision records (like an API response) into a table?
+>
+> **Other questions you can answer the same way:**
+> - How do I convert JSON-style records into rows and columns?
 
 This shape should look familiar from the BoC API on Days 2–3:
 
@@ -328,6 +378,11 @@ Continue in `first_dataframe.py`.
 
 ### Example 1 — Selecting columns
 
+> **Question it answers:** What are the provinces' fiscal balances, without the other columns?
+>
+> **Other questions you can answer the same way:**
+> - Which columns do I need for this chart or calculation?
+
 ```python
 balances = provinces["balance_pct_gdp"]              # one column → Series
 subset = provinces[["province", "balance_pct_gdp"]]  # list of columns → DataFrame
@@ -337,6 +392,12 @@ print(type(balances), type(subset))
 Note the **double brackets** when selecting several columns: the inner brackets are a Python list.
 
 ### Example 2 — Selecting rows with `.loc` and `.iloc`
+
+> **Question it answers:** What is the first, last or a specific province's row in the table?
+>
+> **Other questions you can answer the same way:**
+> - What are Ontario's figures?
+> - What are the first three rows?
 
 ```python
 print(provinces.iloc[0])          # first row, by position
@@ -365,6 +426,12 @@ print(prov.loc[["ON", "QC"], "balance_pct_gdp"])
 
 ### Example 3 — Boolean filtering
 
+> **Question it answers:** Which provinces ran a surplus? Which Atlantic provinces ran a deficit?
+>
+> **Other questions you can answer the same way:**
+> - Which months had inflation above target and unemployment above 6%?
+> - Which quarters had negative growth?
+
 ```python
 surplus = provinces[provinces["balance_pct_gdp"] > 0]
 print(surplus)
@@ -379,6 +446,12 @@ print(atlantic_deficits)
 > **Common error:** writing `and` instead of `&`, or forgetting parentheses, gives `ValueError: The truth value of a Series is ambiguous`. With pandas, always use `&`, `|`, `~` and parentheses.
 
 ### Example 4 — `.isin()` and `.query()`
+
+> **Question it answers:** What are the fiscal positions of the four largest provinces? Which provinces have deficits over 1% of GDP?
+>
+> **Other questions you can answer the same way:**
+> - How do I filter for a list of series codes?
+> - Which Western provinces are in deficit?
 
 ```python
 big_four = provinces[provinces["province"].isin(["ON", "QC", "BC", "AB"])]
@@ -419,11 +492,23 @@ print((provinces["balance_pct_gdp"] < -0.5).sum())   # 5
 
 ### Example 1 — Arithmetic on columns
 
+> **Question it answers:** What is each province's balance in basis points?
+>
+> **Other questions you can answer the same way:**
+> - What is the real rate (nominal minus inflation) in every row?
+> - What is each value per capita?
+
 ```python
 provinces["balance_bp"] = provinces["balance_pct_gdp"] * 100
 ```
 
 ### Example 2 — Conditional labels with `.apply` and your own function
+
+> **Question it answers:** Is each province in surplus, small deficit or large deficit?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation below, inside or above target each month?
+> - Is each quarter an expansion or a contraction?
 
 You already know how to write classification functions (Day 3):
 
@@ -443,6 +528,12 @@ print(provinces[["province", "balance_pct_gdp", "status"]])
 
 ### Example 3 — Mapping codes to names with `.map`
 
+> **Question it answers:** What is the full name of each province code?
+>
+> **Other questions you can answer the same way:**
+> - What is the readable name of each series code?
+> - Which region does each province belong to?
+
 ```python
 names = {"BC": "British Columbia", "AB": "Alberta", "SK": "Saskatchewan",
          "MB": "Manitoba", "ON": "Ontario", "QC": "Quebec",
@@ -455,6 +546,12 @@ provinces["name"] = provinces["province"].map(names)
 ---
 
 ## 4.6 Sorting and Counting (8 min)
+
+> **Question it answers:** Which provinces have the weakest and strongest balances, and how many are in each status and region?
+>
+> **Other questions you can answer the same way:**
+> - What were the five highest inflation months?
+> - How many months fall into each policy stance?
 
 ```python
 # Sort worst to best
@@ -473,6 +570,12 @@ print(provinces["region"].value_counts())
 ## 4.7 Reading and Writing Files (15 min)
 
 ### Example 1 — Reading a CSV
+
+> **Question it answers:** What does the FRED Fed funds file contain, and what types did pandas detect?
+>
+> **Other questions you can answer the same way:**
+> - What is inside a downloaded CSV?
+> - Did the numbers load as numbers?
 
 Look at the raw file first. In the terminal: `head data/fred_fedfunds.csv`
 
@@ -497,6 +600,11 @@ print(ff.tail())
 
 ### Example 2 — Writing CSV and Parquet
 
+> **Question it answers:** How do I save a cleaned table so I (or a colleague) can reuse it later?
+>
+> **Other questions you can answer the same way:**
+> - Which format is smaller and faster to reload?
+
 ```python
 import os
 os.makedirs("data/processed", exist_ok=True)
@@ -515,6 +623,12 @@ The course notebook saves everything as Parquet (`save_df`), and DuckDB (Days 11
 ---
 
 ## 4.8 Mini-Project: Exploring the Fed Funds Rate (10 min)
+
+> **Question it answers:** Over its history, what were the Fed funds rate's average, highest and lowest values, and how many months was it above 5%?
+>
+> **Other questions you can answer the same way:**
+> - How many months was the rate near zero?
+> - What does the rate's full history look like in numbers?
 
 Create `day04/fed_funds.py`. Using `data/fred_fedfunds.csv`:
 
@@ -585,6 +699,12 @@ git push
 
 ## 5.1 Why Dates Are Special (8 min)
 
+> **Question it answers:** How many days passed between the 2023 peak and the first cut in 2024?
+>
+> **Other questions you can answer the same way:**
+> - How long did each tightening cycle last?
+> - What date is three months after a decision?
+
 Create `day05/dates_basics.py`.
 
 ```python
@@ -607,6 +727,12 @@ print(first_cut.strftime("%B %Y"))      # "June 2024"
 
 ### Generating date sequences
 
+> **Question it answers:** What are all the month-start dates between January and June 2026?
+>
+> **Other questions you can answer the same way:**
+> - Which quarters should a quarterly dataset contain?
+> - What is a complete monthly calendar for my sample?
+
 ```python
 monthly = pd.date_range("2026-01-01", "2026-06-01", freq="MS")   # month starts
 quarterly = pd.date_range("2025-01-01", periods=4, freq="QS")    # quarter starts
@@ -619,6 +745,12 @@ The notebook's `synth_dates` helper uses exactly this.
 ---
 
 ## 5.2 Date Columns and the `.dt` Accessor (15 min)
+
+> **Question it answers:** In which year, quarter and month does each observation fall?
+>
+> **Other questions you can answer the same way:**
+> - What was the average rate per year?
+> - Which observations fall in Q4?
 
 ```python
 ff = pd.read_csv("data/fred_fedfunds.csv").iloc[:, :2]
@@ -637,6 +769,11 @@ print(ff.tail())
 `.dt` gives access to date parts of a whole column, just as `.str` does for text.
 
 ### Parsing dates explicitly
+
+> **Question it answers:** How do I read StatCan dates like "2026-07" correctly as July 2026?
+>
+> **Other questions you can answer the same way:**
+> - How do I stop pandas misreading day and month?
 
 StatCan monthly dates look like `"2026-07"` (no day). Tell pandas the format so it never guesses wrong:
 
@@ -659,6 +796,11 @@ Putting dates in the **index** unlocks pandas' time-series superpowers. Create `
 
 ### Example 1 — Setting the index
 
+> **Question it answers:** How do I organise the Fed funds data so that dates become the row labels?
+>
+> **Other questions you can answer the same way:**
+> - How do I prepare any series for time-series operations?
+
 ```python
 import pandas as pd
 
@@ -674,6 +816,12 @@ print(ff.index)          # DatetimeIndex
 
 ### Example 2 — Selecting by partial date strings
 
+> **Question it answers:** What was the Fed funds rate during 2023, between March 2022 and July 2023, and from 2019 onward?
+>
+> **Other questions you can answer the same way:**
+> - What happened during the pandemic months?
+> - What was the value in a specific month?
+
 ```python
 print(ff.loc["2023"])                       # all of 2023
 print(ff.loc["2022-03":"2023-07"])          # a date range (both ends included)
@@ -684,6 +832,12 @@ print(ff.loc["2019":])                      # from 2019 to the end
 Compare with Day 4, where we filtered on text. This is shorter, safer and faster.
 
 ### Example 3 — Working with a single series
+
+> **Question it answers:** When does the series start and end, when did it peak, and what was its average in the 2010s?
+>
+> **Other questions you can answer the same way:**
+> - What was the highest unemployment rate and when?
+> - What was average inflation in a decade?
 
 ```python
 rate = ff["fed_funds"]                      # Series with a DatetimeIndex
@@ -697,6 +851,11 @@ print("Average 2010s:", rate.loc["2010":"2019"].mean().round(2))
 `idxmax()` returns the *date* of the maximum. That's hard to do with plain lists!
 
 ### Example 4 — Sanity checks on the index
+
+> **Question it answers:** Are the dates sorted and free of duplicates?
+>
+> **Other questions you can answer the same way:**
+> - Is this series safe to use for growth-rate calculations?
 
 ```python
 print(rate.index.is_monotonic_increasing)   # sorted?
@@ -730,6 +889,12 @@ Create `day05/clean_boc.py`.
 
 ### Example 1 — Spotting missing values
 
+> **Question it answers:** How many values are missing, and should I drop them or carry the last value forward?
+>
+> **Other questions you can answer the same way:**
+> - How many CPI months are missing?
+> - What policy rate applied on a day with no announcement?
+
 ```python
 import numpy as np
 import pandas as pd
@@ -744,6 +909,11 @@ print(s.ffill())            # carry the last value forward
 `numpy` (`np`) was installed alongside pandas. `np.nan` is how we type a missing value.
 
 ### Example 2 — Cleaning the raw BoC file (replaces Day 3's `clean_observations`)
+
+> **Question it answers:** How many Bank of Canada values were unreadable, and what does the cleaned daily series look like?
+>
+> **Other questions you can answer the same way:**
+> - How do I turn a raw download into a clean numeric series in a few lines?
 
 ```python
 raw = pd.read_csv("data/boc_overnight.csv")
@@ -777,6 +947,11 @@ Create `day05/inflation.py`. We use real StatCan CPI data.
 
 ### Step 1 — Load All-items CPI as a monthly series
 
+> **Question it answers:** What is the All-items CPI level each month?
+>
+> **Other questions you can answer the same way:**
+> - What is the CPI level for food, shelter or energy?
+
 ```python
 import pandas as pd
 
@@ -798,6 +973,11 @@ The parentheses let you split a long chain of methods across lines.
 
 ### Step 2 — `shift`: looking back in time
 
+> **Question it answers:** What was CPI last month and a year ago, next to this month's value?
+>
+> **Other questions you can answer the same way:**
+> - How do I compare each value with an earlier period?
+
 ```python
 print(pd.DataFrame({
     "cpi": all_items,
@@ -809,6 +989,11 @@ print(pd.DataFrame({
 `shift(12)` moves the series down 12 rows, so each month sits beside the same month last year.
 
 ### Step 3 — Year-over-year inflation, three ways
+
+> **Question it answers:** What is year-over-year CPI inflation each month?
+>
+> **Other questions you can answer the same way:**
+> - What is YoY growth in employment, wages or house prices?
 
 ```python
 # (a) Manual formula with shift
@@ -828,6 +1013,12 @@ Your Day 3 `yoy_changes(levels, lag=12)` did the same thing with a loop.
 
 ### Step 4 — Other growth measures
 
+> **Question it answers:** What are month-over-month inflation, 3-month annualised inflation and the 12-month change in index points?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation speeding up recently?
+> - How many index points have prices risen in a year?
+
 ```python
 mom = all_items.pct_change(1) * 100                         # month-over-month
 ann_3m = ((all_items / all_items.shift(3)) ** 4 - 1) * 100  # 3-month annualised
@@ -837,6 +1028,11 @@ change_pts = all_items.diff(12)                             # change in index po
 > **Economist's warning:** table 18-10-0004 is **not seasonally adjusted**. Year-over-year comparisons cancel seasonality; month-over-month and 3-month annualised rates don't. Interpret short-horizon measures from this table with care.
 
 ### Step 5 — Watch out for gaps
+
+> **Question it answers:** Are any months missing from the CPI series, which would make YoY calculations wrong?
+>
+> **Other questions you can answer the same way:**
+> - Does my series cover every expected month?
 
 `pct_change(12)` compares with **12 rows back**, not 12 months back. If a month is missing, every later YoY is wrong. Check before trusting it:
 
@@ -851,6 +1047,12 @@ This exact check becomes a formal data-quality rule in Great Expectations (Days 
 ---
 
 ## 5.6 Rolling and Expanding Windows (10 min)
+
+> **Question it answers:** What are the 3-month moving average of inflation, its running peak, and the number of months above 3% in the past year?
+>
+> **Other questions you can answer the same way:**
+> - What is the underlying trend in unemployment?
+> - What was the highest inflation so far at each date?
 
 ```python
 yoy_recent = yoy.loc["2019":]
@@ -874,6 +1076,11 @@ The notebook uses `.rolling(4, min_periods=1).mean()` for housing starts, where 
 
 ## 5.7 Periods: Normalising Dates (5 min)
 
+> **Question it answers:** How do I line up daily dates (like 14 August) with monthly dates (1 August)?
+>
+> **Other questions you can answer the same way:**
+> - Which quarter does each date belong to?
+
 Daily data has dates like `2026-08-14`; monthly data uses `2026-08-01`. To line them up, the notebook converts dates to **periods** and back:
 
 ```python
@@ -889,6 +1096,12 @@ Tomorrow you'll meet `resample`, a cleaner way to achieve the same result.
 ---
 
 ## 5.8 Mini-Project: CPI Inflation Fact Sheet (23 min)
+
+> **Question it answers:** What are the latest inflation rate, its 12-month range, the peak since 2021, and how many months it has been outside the 1–3% band?
+>
+> **Other questions you can answer the same way:**
+> - How does today's inflation compare with recent history?
+> - How long has inflation been inside the target band?
 
 Create `day05/cpi_factsheet.py` that prints:
 
@@ -1005,6 +1218,12 @@ Create `day06/resampling.py`.
 
 ### Example 1 — Daily to monthly
 
+> **Question it answers:** What was the overnight rate at the end of each month, and what was its average during the month?
+>
+> **Other questions you can answer the same way:**
+> - What was the month-end exchange rate?
+> - What was the average daily oil price each month?
+
 ```python
 from loaders import load_boc
 
@@ -1019,6 +1238,11 @@ print(monthly_last.tail())
 `resample("MS")` groups by calendar month and labels each group with the **month start** date, matching how StatCan and FRED date monthly data.
 
 ### Example 2 — Which aggregation is economically right?
+
+> **Question it answers:** What was the average Canadian-dollar exchange rate each month?
+>
+> **Other questions you can answer the same way:**
+> - Should a series be averaged or sampled at the end of the period?
 
 | Series | Sensible monthly aggregation | Why |
 |---|---|---|
@@ -1037,6 +1261,12 @@ The notebook achieves the same with `.dt.to_period("M").dt.to_timestamp()` follo
 
 ### Example 3 — Other frequencies
 
+> **Question it answers:** What was the policy rate at each quarter, and its average each year?
+>
+> **Other questions you can answer the same way:**
+> - What was annual average inflation?
+> - What was the quarterly average unemployment rate?
+
 ```python
 quarterly = overnight.resample("QS").last()      # quarter start labels
 annual = overnight.resample("YS").mean()         # annual average
@@ -1054,6 +1284,11 @@ print(annual.round(2))
 > Pick **one** labelling convention for a project and stick with it. We use *start* labels (`MS`, `QS`) because StatCan does.
 
 ### Example 4 — Upsampling a step function
+
+> **Question it answers:** What policy rate applied on each day, given only monthly values?
+>
+> **Other questions you can answer the same way:**
+> - How do I convert a quarterly series to monthly for a merge?
 
 Going from monthly to daily requires filling. For a policy rate, forward fill is correct:
 
@@ -1091,6 +1326,11 @@ Create `day06/grouping.py`.
 
 ### Example 1 — Latest value per CPI component
 
+> **Question it answers:** What is the latest index level of each CPI component?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest value of each series or province?
+
 ```python
 from loaders import load_cpi_long
 
@@ -1105,6 +1345,12 @@ print(latest)
 
 ### Example 2 — YoY inflation per component (the notebook's method)
 
+> **Question it answers:** What is year-over-year inflation for each CPI component in the latest month?
+>
+> **Other questions you can answer the same way:**
+> - Which components are rising fastest?
+> - What is YoY growth for each province?
+
 ```python
 cpi["yoy"] = cpi.groupby("component")["value"].pct_change(12) * 100
 print(cpi[cpi["date"] == cpi["date"].max()][["component", "yoy"]])
@@ -1113,6 +1359,12 @@ print(cpi[cpi["date"] == cpi["date"].max()][["component", "yoy"]])
 Without `groupby`, `pct_change(12)` would compare Energy with Food at the boundary between components. Grouping keeps each component's calculation separate. This is the exact line in the notebook's Cell 4.
 
 ### Example 3 — Grouping by time
+
+> **Question it answers:** What was average inflation each year, and in each decade?
+>
+> **Other questions you can answer the same way:**
+> - What was average unemployment per year?
+> - Which decade had the highest rates?
 
 ```python
 all_items = cpi[cpi["component"] == "All-items"].set_index("date")["yoy"]
@@ -1125,6 +1377,12 @@ print(all_items.groupby(decade).mean().round(2))
 ```
 
 ### Example 4 — Several statistics at once with `.agg`
+
+> **Question it answers:** Since 2021, what were the mean, minimum, maximum and volatility of inflation for each component?
+>
+> **Other questions you can answer the same way:**
+> - Which components were most volatile?
+> - Which component had the highest peak?
 
 ```python
 summary = (cpi.dropna(subset=["yoy"])
@@ -1142,6 +1400,11 @@ Which component drove the post-pandemic inflation surge?
 
 ## 6.3 Long vs Wide: `pivot` and `melt` (20 min)
 
+> **Question it answers:** Should my data have one row per date-and-component, or one column per component?
+>
+> **Other questions you can answer the same way:**
+> - Which layout does a chart or a regression need?
+
 The StatCan file is **long**: one row per date *and* component. Charts and regressions usually want **wide**: one row per date, one column per component.
 
 ```
@@ -1154,6 +1417,11 @@ date        component  value         date        Energy  Food  Shelter ...
 
 ### Example 1 — Long to wide with `pivot`
 
+> **Question it answers:** What were YoY inflation rates for every component, side by side by month?
+>
+> **Other questions you can answer the same way:**
+> - How do provinces compare month by month in one table?
+
 ```python
 wide_yoy = cpi.pivot(index="date", columns="component", values="yoy")
 print(wide_yoy.loc["2025":].round(1).tail())
@@ -1163,6 +1431,11 @@ print(wide_yoy.loc["2025":].round(1).tail())
 
 ### Example 2 — Wide to long with `melt`
 
+> **Question it answers:** How do I turn a wide table back into one row per date and component?
+>
+> **Other questions you can answer the same way:**
+> - How do I prepare wide spreadsheet data for grouping or plotting?
+
 ```python
 long_again = wide_yoy.reset_index().melt(
     id_vars="date", var_name="component", value_name="yoy")
@@ -1170,6 +1443,12 @@ print(long_again.head())
 ```
 
 ### Example 3 — Why wide is handy: comparisons across columns
+
+> **Question it answers:** Which components have the highest inflation right now, and how far is shelter above headline?
+>
+> **Other questions you can answer the same way:**
+> - What is the gap between two series each month?
+> - How do provinces rank in the latest month?
 
 ```python
 latest = wide_yoy.dropna().iloc[-1].sort_values(ascending=False)
@@ -1189,6 +1468,12 @@ Create `day06/merging.py`.
 
 ### Example 1 — `pd.merge` on a date column
 
+> **Question it answers:** What is the gap between the Bank of Canada and Fed policy rates each month?
+>
+> **Other questions you can answer the same way:**
+> - What is the real rate (policy rate minus inflation) each month?
+> - How does Canadian inflation compare with US inflation?
+
 ```python
 import pandas as pd
 from loaders import load_boc, load_fred
@@ -1204,6 +1489,11 @@ print(rate_diff.tail())
 `reset_index()` turns the date index back into a column so `merge` can match on it. This mirrors the notebook's Cell 5 BoC−Fed differential.
 
 ### Example 2 — Types of join
+
+> **Question it answers:** Which months are kept when I combine two series with inner, left, right and outer joins?
+>
+> **Other questions you can answer the same way:**
+> - How do I keep all months even when one series is missing?
 
 ```python
 a = pd.DataFrame({"date": ["2026-01", "2026-02", "2026-03"], "boc": [2.25, 2.25, 2.25]})
@@ -1223,6 +1513,11 @@ for how in ["inner", "left", "right", "outer"]:
 
 ### Example 3 — Diagnosing a merge with `indicator=True`
 
+> **Question it answers:** Which months appear in only one of the two series, and why?
+>
+> **Other questions you can answer the same way:**
+> - Did my merge silently drop observations?
+
 ```python
 check = pd.merge(boc_m.reset_index(), fed_m.reset_index(),
                  on="date", how="outer", indicator=True)
@@ -1234,6 +1529,11 @@ This shows which dates exist in only one source. It's usually the most recent mo
 
 ### Example 4 — Protecting against duplicate keys
 
+> **Question it answers:** How do I make sure a merge doesn't duplicate rows because a date appears twice?
+>
+> **Other questions you can answer the same way:**
+> - Is my lookup table really one row per date?
+
 ```python
 pd.merge(boc_m.reset_index(), fed_m.reset_index(),
          on="date", how="inner", validate="one_to_one")
@@ -1242,6 +1542,11 @@ pd.merge(boc_m.reset_index(), fed_m.reset_index(),
 If either side had duplicate dates, pandas would raise an error instead of silently multiplying rows.
 
 ### Example 5 — Combining many series by index with `pd.concat`
+
+> **Question it answers:** What do the BoC rate, Fed rate, exchange rate and oil price look like side by side each month, and where are the gaps?
+>
+> **Other questions you can answer the same way:**
+> - How do I build a monthly macro panel from several series?
 
 When every piece is a Series with the same kind of DatetimeIndex, `concat` along columns is the simplest tool:
 
@@ -1261,6 +1566,12 @@ print(panel.isna().sum())
 ---
 
 ## 6.5 Mini-Project: Rebuild the Notebook's Derived Series (30 min)
+
+> **Question it answers:** What were the rate differential, the real rate, CPI inflation and the exchange-rate change each month, rebuilt from raw data?
+>
+> **Other questions you can answer the same way:**
+> - Do my numbers match the course notebook?
+> - How did the real rate evolve during 2022?
 
 Recreate **Cell 5** of `Macro_Fall_2026.ipynb` using today's tools. Create `day06/derived_series.py` that builds one monthly DataFrame with:
 
@@ -1352,6 +1663,11 @@ Create `day07/quick_charts.py`. Copy `day06/loaders.py` into `day07/` first.
 
 ### Example 1 — A single line chart
 
+> **Question it answers:** How has the overnight rate moved over time?
+>
+> **Other questions you can answer the same way:**
+> - What does the history of any single indicator look like?
+
 ```python
 import os
 import matplotlib
@@ -1372,6 +1688,12 @@ plt.close()
 
 ### Example 2 — Several series and a reference line
 
+> **Question it answers:** How have headline, shelter and energy inflation moved since 2018 relative to the 2% target?
+>
+> **Other questions you can answer the same way:**
+> - Which component drove the 2022 inflation surge?
+> - How far is inflation from target?
+
 ```python
 import pandas as pd
 from loaders import load_cpi_long
@@ -1391,6 +1713,12 @@ plt.close()
 ```
 
 ### Example 3 — Recession shading (from the notebook)
+
+> **Question it answers:** How did the indicator behave during past recessions?
+>
+> **Other questions you can answer the same way:**
+> - Did unemployment rise during each recession?
+> - When did rates fall relative to the downturns?
 
 ```python
 RECESSION_BANDS = [          # as defined in the course notebook
@@ -1413,6 +1741,11 @@ plt.close()
 
 ### Example 4 — Two panels in one figure
 
+> **Question it answers:** How did the policy rate respond to inflation over time?
+>
+> **Other questions you can answer the same way:**
+> - How do two related indicators compare when they have different units?
+
 ```python
 fig, axes = plt.subplots(2, 1, figsize=(10, 7), sharex=True)
 
@@ -1431,6 +1764,11 @@ Open the `charts/` folder in the Explorer and click a PNG to view it.
 ---
 
 ## 7.2 Refactoring into a `panel.py` Module (30 min)
+
+> **Question it answers:** How do I build the monthly macro panel with one reusable function instead of repeating steps in every script?
+>
+> **Other questions you can answer the same way:**
+> - Where do I change the start date or add a new series once for all scripts?
 
 Over three days, your scripts have repeated the same loading and transforming steps. Let's collect them into **one tested module**, just as Day 3's `macrotools.py` did for scalar calculations.
 
@@ -1519,6 +1857,12 @@ print(latest_values(panel))
 
 ## 7.3 Data-Quality Checks (20 min)
 
+> **Question it answers:** Does the panel have sorted, unique dates, plausible values and no unexpected gaps?
+>
+> **Other questions you can answer the same way:**
+> - Is this dataset safe to share?
+> - Which checks failed, and why?
+
 Before anyone uses your panel, it should **prove** it's sound. Add to `panel.py`:
 
 ```python
@@ -1580,6 +1924,12 @@ Then try dropping a row (`panel.drop(pd.Timestamp("2019-03-01"))`) and duplicati
 
 ## 7.4 Mixing Frequencies: a Quarterly Panel with GDP (20 min)
 
+> **Question it answers:** In each quarter, how did real GDP growth compare with average inflation, rates and unemployment?
+>
+> **Other questions you can answer the same way:**
+> - What was GDP growth when inflation peaked?
+> - How do monthly indicators line up with quarterly GDP?
+
 GDP is quarterly; most of our panel is monthly. The standard approach is to **aggregate monthly to quarterly**, never to invent monthly GDP.
 
 Add to `panel.py`:
@@ -1621,6 +1971,11 @@ Compare the simple and compounded annualised growth: the gap is largest in extre
 ---
 
 ## 7.5 Capstone: `build_panel.py` (25 min)
+
+> **Question it answers:** How can anyone reproduce the monthly and quarterly panels and charts with a single command?
+>
+> **Other questions you can answer the same way:**
+> - Will a colleague get the same datasets and charts on their computer?
 
 Write a single script that anyone on your team can run to reproduce your datasets and charts.
 

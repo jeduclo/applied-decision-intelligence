@@ -96,6 +96,12 @@ Add these lines to `.gitignore` now, **before** you create any secrets:
 
 ## 21.2 The Smallest Possible Pipeline (25 min)
 
+> **Question it answers:** How do I load a small list of rate decisions into a database table, with the table created for me?
+>
+> **Other questions you can answer the same way:**
+> - How do I get records from Python into DuckDB without writing CREATE TABLE?
+> - What is the least code needed to load data?
+
 Create `day21/first_pipeline.py`:
 
 ```python
@@ -140,6 +146,12 @@ DESCRIBE practice.boc_decisions;
 
 ### What dlt did for you
 
+> **Question it answers:** What tables did dlt create, and when did each load happen?
+>
+> **Other questions you can answer the same way:**
+> - When was this table last loaded?
+> - Which schema version is in use?
+
 1. **Created a schema** (`practice`) and a **table** (`boc_decisions`).
 2. **Inferred types**: `rate` → `DOUBLE`, `change_bp` → `BIGINT`, and `decision_date` → a text or date column depending on how dlt reads the string (next block).
 3. **Added bookkeeping columns**: `_dlt_load_id` (which run loaded this row) and `_dlt_id` (a unique row ID).
@@ -153,6 +165,11 @@ SELECT * FROM practice._dlt_version;        -- schema versions
 `_dlt_loads` replaces the `fetched_at` column you added by hand on Day 10: every row can be traced to the exact run that produced it.
 
 ### Types: be explicit about dates
+
+> **Question it answers:** How do I make sure decision dates are stored as real dates, not text?
+>
+> **Other questions you can answer the same way:**
+> - Why is my date column a VARCHAR in the database?
 
 Strings that look like dates may stay text. Convert them in Python, and dlt will create a proper `DATE` column:
 
@@ -182,6 +199,12 @@ load_info = pipeline.run(
 
 ## 21.3 Running Twice: Write Dispositions (23 min)
 
+> **Question it answers:** Why do I have 6 rows instead of 3 after running the pipeline twice, and which load added each row?
+>
+> **Other questions you can answer the same way:**
+> - Should this table be appended to or replaced each run?
+> - How many rows did each load add?
+
 Run `first_pipeline.py` **again**, then count the rows:
 
 ```sql
@@ -208,6 +231,12 @@ load_info = pipeline.run(
 Run it twice and check that the count stays at 3.
 
 ### A first look at `merge`
+
+> **Question it answers:** How do I update a revised decision and add a new one, without creating duplicates?
+>
+> **Other questions you can answer the same way:**
+> - How do I apply StatCan's revisions to past months?
+> - How do I keep one row per date across many runs?
 
 Macro data gets **revised**: StatCan updates past months. `merge` handles that when you tell dlt which columns identify a row:
 
@@ -264,6 +293,11 @@ dlt resources are usually **generators**, a Python feature you haven't met yet. 
 
 ### Example 1 — `return` gives everything at once
 
+> **Question it answers:** What does a function that builds the whole list before handing it back look like?
+>
+> **Other questions you can answer the same way:**
+> - Why might a huge download not fit in memory?
+
 ```python
 def all_months_list(n):
     months = []
@@ -275,6 +309,11 @@ print(all_months_list(5))     # [0, 1, 2, 3, 4]
 ```
 
 ### Example 2 — `yield` gives one item at a time
+
+> **Question it answers:** How can a function hand over values one at a time, only when asked?
+>
+> **Other questions you can answer the same way:**
+> - How do I process a long series without holding it all in memory?
 
 ```python
 def months_generator(n):
@@ -304,6 +343,11 @@ The function **pauses** at each `yield` and resumes when the next item is reques
 
 ### Why this matters for data
 
+> **Question it answers:** How do I download many series one batch at a time instead of all at once?
+>
+> **Other questions you can answer the same way:**
+> - How do I start loading the first series while the others are still downloading?
+
 Imagine downloading 50 years of daily data for 200 series. With `return`, everything must fit in memory before anything is saved. With `yield`, dlt can process and write each batch as it arrives.
 
 ```python
@@ -320,6 +364,11 @@ for batch in fetch_series_one_by_one(["V39079", "FXCADUSD"]):
 You can yield **single dictionaries** or **lists of dictionaries** (pages). Yielding lists is faster when an API returns many rows at once.
 
 ### Example 3 — Generators are used up
+
+> **Question it answers:** Why does my generator give an empty result the second time I read it?
+>
+> **Other questions you can answer the same way:**
+> - Why did my second loop over the data produce nothing?
 
 ```python
 gen = months_generator(2)
@@ -349,6 +398,12 @@ print(list(compounding_path(3180, 0.015, 5)))
 ---
 
 ## 21.5 `@dlt.resource`: a Real BoC Resource (23 min)
+
+> **Question it answers:** How do I turn a Bank of Canada download into a resource that loads straight into the warehouse, with a primary key and merge rules?
+>
+> **Other questions you can answer the same way:**
+> - How do I load any BoC series into DuckDB in a few lines?
+> - How do I make reloading safe?
 
 A **resource** is a generator decorated with `@dlt.resource`. The decorator attaches table-level settings: name, write disposition, keys and column hints.
 
@@ -418,6 +473,12 @@ duckdb dlt_practice.duckdb -c "SELECT series_id, COUNT(*), MAX(date) FROM practi
 
 ### The load info
 
+> **Question it answers:** Did the load succeed, and how long did each step take?
+>
+> **Other questions you can answer the same way:**
+> - Did any part of the load fail?
+> - Which step is the slowest?
+
 ```python
 print(info)                       # human-readable summary
 print(info.has_failed_jobs)       # True/False
@@ -426,12 +487,22 @@ print(pipeline.last_trace)        # timings of extract / normalize / load
 
 ### The dlt command line
 
+> **Question it answers:** What tables and runs does the pipeline have, and how long did the last run take?
+>
+> **Other questions you can answer the same way:**
+> - When did the pipeline last run successfully?
+
 ```bash
 dlt pipeline dlt_practice info         # tables, schemas, last run
 dlt pipeline dlt_practice trace        # step-by-step timings of the last run
 ```
 
 ### Reading data back into pandas
+
+> **Question it answers:** What are the summary statistics of each loaded series, read straight back into pandas?
+>
+> **Other questions you can answer the same way:**
+> - How do I check loaded data without writing SQL?
 
 ```python
 ds = pipeline.dataset()
@@ -440,6 +511,11 @@ print(df.groupby("series_id")["value"].describe())
 ```
 
 ### Where dlt keeps its working files
+
+> **Question it answers:** Where does dlt keep its state and working files between runs?
+>
+> **Other questions you can answer the same way:**
+> - How do I reset a pipeline that got into a bad state?
 
 ```bash
 ls ~/.dlt/pipelines/dlt_practice/
@@ -454,6 +530,11 @@ rm -rf ~/.dlt/pipelines/dlt_practice dlt_practice.duckdb
 
 ### Seeing the inferred schema
 
+> **Question it answers:** What columns and types did dlt infer for my tables?
+>
+> **Other questions you can answer the same way:**
+> - Did dlt read the value column as a number?
+
 ```python
 print(pipeline.default_schema.to_pretty_yaml())
 ```
@@ -463,6 +544,11 @@ Find `boc_observations` in the output. You'll see each column's `data_type`, `nu
 ---
 
 ## 21.7 Mini-Project: A FRED Resource (13 min)
+
+> **Question it answers:** How do I load any list of FRED series into the warehouse, with typed dates and values and safe reloading?
+>
+> **Other questions you can answer the same way:**
+> - How do I add US indicators alongside the Canadian ones?
 
 Create `day21/fred_resource.py` with a resource `fred_observations(series_ids, start_date="2006-01-01")` that:
 
@@ -560,6 +646,11 @@ git push
 
 ## 22.1 The Design Idea (20 min)
 
+> **Question it answers:** How should I group related downloads (data and metadata from one provider) so they're configured once?
+>
+> **Other questions you can answer the same way:**
+> - Which resources belong to the BoC, FRED and StatCan sources?
+
 | | Resource | Source |
 |---|---|---|
 | Produces | **one table** | a **group** of tables |
@@ -582,6 +673,11 @@ Keeping **metadata** as a separate resource (labels, units, frequency) gives you
 ---
 
 ## 22.2 `@dlt.source`: Grouping BoC Resources (25 min)
+
+> **Question it answers:** How do I load BoC observations and their series descriptions together, from one configurable source?
+>
+> **Other questions you can answer the same way:**
+> - What is the label and description of each series I load?
 
 Create `day22/boc_source.py`:
 
@@ -661,6 +757,11 @@ A fact table and a dimension table from one source, joined in SQL: Day 12's star
 
 ## 22.3 Table Design: One Long Table or One Table per Series? (23 min)
 
+> **Question it answers:** Should each series get its own table, or should all series share one long table?
+>
+> **Other questions you can answer the same way:**
+> - Which design makes it easier to add a new series later?
+
 You could also create one table per series (`boc_v39079`, `boc_fxcadusd`, …) by creating resources dynamically:
 
 ```python
@@ -701,6 +802,11 @@ For homogeneous time series, **long** is almost always better, and it's what the
 
 ### Selecting some resources from a source
 
+> **Question it answers:** How do I load only the metadata, without downloading all the observations again?
+>
+> **Other questions you can answer the same way:**
+> - How do I rerun just one part of a source?
+
 ```python
 source = boc_source(["V39079"])
 print(list(source.resources.keys()))       # ['boc_observations', 'boc_series_metadata']
@@ -709,6 +815,11 @@ pipeline.run(source.with_resources("boc_series_metadata"))   # load only metadat
 ```
 
 ### Limiting during development
+
+> **Question it answers:** How do I test a pipeline quickly without downloading 20 years of data?
+>
+> **Other questions you can answer the same way:**
+> - How do I check my code works before a full run?
 
 When experimenting, don't download 20 years of data each time:
 
@@ -719,6 +830,11 @@ pipeline.run(boc_source(["V39079", "FXCADUSD"]).add_limit(1))
 `add_limit(1)` stops each resource after its first yield. With our code that means one series' page, which is ideal for quick tests.
 
 ### Transforming items with `add_map` and `add_filter`
+
+> **Question it answers:** How do I add a unit to each row and keep only data since 2020, without editing the resource?
+>
+> **Other questions you can answer the same way:**
+> - How do I drop old observations or tag rows as they load?
 
 These apply a function to every item **as it flows through**, without editing the resource itself:
 
@@ -772,6 +888,11 @@ The new column appeared without any `ALTER TABLE`: schema evolution again.
 ---
 
 ## 22.5 Transformers: Dependent Resources (23 min)
+
+> **Question it answers:** How do I first list every series in a Bank of Canada group, then download each one?
+>
+> **Other questions you can answer the same way:**
+> - How do I fetch details for every item returned by a catalogue call?
 
 Sometimes one resource's output drives another's requests: *first list the series in a group, then fetch each series*. A **transformer** receives items from a parent resource.
 
@@ -846,6 +967,11 @@ ORDER BY s.label;
 ---
 
 ## 22.6 Mini-Project: A Statistics Canada Source (23 min)
+
+> **Question it answers:** How do I load StatCan vectors (CPI, unemployment and more) with their metadata into the warehouse?
+>
+> **Other questions you can answer the same way:**
+> - What was the latest unemployment rate, loaded from StatCan's API?
 
 Create `day22/statcan_source.py` with a source `statcan_source(vectors, latest_n=250)` containing two resources:
 
@@ -959,6 +1085,11 @@ git push
 
 ## 23.1 Config vs Secrets (20 min)
 
+> **Question it answers:** Where should settings and secret keys live so they're not hard-coded or committed to Git?
+>
+> **Other questions you can answer the same way:**
+> - Is my secrets file safely ignored by Git?
+
 Your code so far has values **hard-coded** in it: series lists, start dates, file names. That causes three problems:
 
 1. Changing *what* you fetch means editing code.
@@ -986,6 +1117,11 @@ If the last command prints nothing, fix `.gitignore` (Day 21.1) **before continu
 
 ### TOML in two minutes
 
+> **Question it answers:** How do I write settings such as series lists and start dates in a readable config file?
+>
+> **Other questions you can answer the same way:**
+> - How do I change which series are loaded without editing code?
+
 TOML is a simple, readable settings format:
 
 ```toml
@@ -1011,6 +1147,11 @@ Sections map naturally to Python dictionaries: `sources → boc → series_ids`.
 Instead of passing arguments yourself, you can ask dlt to **inject** them from configuration.
 
 ### Example 1 — Required configuration
+
+> **Question it answers:** Which series and start date should the BoC source use, taken from the config file?
+>
+> **Other questions you can answer the same way:**
+> - How do I start the history in 2010 instead of 2006?
 
 Put this in `.dlt/config.toml`:
 
@@ -1058,6 +1199,11 @@ Comment out `start_date` in `config.toml` and run again. The error message lists
 
 ### Example 3 — Environment variables override files
 
+> **Question it answers:** How do I override one setting for a single run without editing any file?
+>
+> **Other questions you can answer the same way:**
+> - How do I run a quick test with only recent data?
+
 Every setting can also come from an environment variable: take the TOML path, join the parts with **double underscores**, and use capitals:
 
 | TOML | Environment variable |
@@ -1085,6 +1231,11 @@ On Day 9 you may have registered a FRED API key. Now let dlt handle it.
 
 ### Store it (choose one)
 
+> **Question it answers:** Where do I put my FRED API key so dlt can find it?
+>
+> **Other questions you can answer the same way:**
+> - How do I give a pipeline a password or token safely?
+
 **Option A — local file** (quick, for your Codespace only). In `.dlt/secrets.toml`:
 
 ```toml
@@ -1095,6 +1246,11 @@ api_key = "paste-your-key-here"
 **Option B — Codespaces secret** (recommended). On GitHub: *Settings → Codespaces → Secrets → New secret*, named `SOURCES__FRED__API_KEY`, with access to `macro-data-course`. Restart the Codespace; dlt now finds the key as an environment variable, with no file needed.
 
 ### Use it
+
+> **Question it answers:** How do I load FRED data through the official API using a key that never appears in the code?
+>
+> **Other questions you can answer the same way:**
+> - Is my key being picked up correctly?
 
 Create `day23/fred_api_source.py`:
 
@@ -1152,6 +1308,11 @@ Run it with the practice pipeline and check that it loads.
 
 ## 23.4 Destinations from Configuration: Dev vs Prod (18 min)
 
+> **Question it answers:** How do I point the same pipeline at a test database or the real warehouse just by changing configuration?
+>
+> **Other questions you can answer the same way:**
+> - Which database is this run writing to?
+
 So far `destination="duckdb"` wrote to `<pipeline_name>.duckdb`. The **credentials** of a DuckDB destination are simply the path to the database file, and they can come from configuration too.
 
 In `.dlt/secrets.toml` (destination credentials are conventionally treated as secrets, even when they're just a path):
@@ -1172,6 +1333,11 @@ python ingest.py                                                      # "prod" =
 
 ### Dataset names keep layers apart
 
+> **Question it answers:** How do I keep dlt's tables separate from the tables built by my earlier loader?
+>
+> **Other questions you can answer the same way:**
+> - Which schema holds the dlt data, and which holds the old raw data?
+
 We load dlt output into its own schema, `raw_dlt`, so it can't collide with `raw.*` tables built by `load_warehouse.py`:
 
 ```
@@ -1191,6 +1357,11 @@ Rebuild Day 10's `macro_extract` as a dlt package, fully driven by configuration
 
 ### Configuration: `.dlt/config.toml`
 
+> **Question it answers:** Which series, start dates and settings does the full ingestion project use?
+>
+> **Other questions you can answer the same way:**
+> - Where do I add a new series to the production pipeline?
+
 ```toml
 [runtime]
 log_level = "WARNING"
@@ -1209,6 +1380,11 @@ latest_n = 250
 ```
 
 ### Package layout
+
+> **Question it answers:** How do I organise the BoC, FRED and StatCan sources as one reusable package?
+>
+> **Other questions you can answer the same way:**
+> - Where does each source's code live?
 
 ```bash
 mkdir -p macro_ingest
@@ -1433,6 +1609,11 @@ if __name__ == "__main__":
 
 ### Run it and compare with the old pipeline
 
+> **Question it answers:** Does the new dlt pipeline load the same series, dates and values as the old one?
+>
+> **Other questions you can answer the same way:**
+> - Are the row counts and latest dates identical?
+
 ```bash
 python ingest.py
 duckdb macro.duckdb -readonly
@@ -1465,6 +1646,11 @@ Small differences are expected: data published between the two runs, or differen
 ---
 
 ## 23.6 Smoke Tests · Recap (10 min)
+
+> **Question it answers:** Does the whole ingestion machinery work end to end, using tiny loads into a throwaway database?
+>
+> **Other questions you can answer the same way:**
+> - Did today's code change break any source?
 
 A **smoke test** is a quick run that checks the machinery works end to end without doing all the work. Combine three things you learned: `add_limit`, a throwaway destination, and a small config override.
 

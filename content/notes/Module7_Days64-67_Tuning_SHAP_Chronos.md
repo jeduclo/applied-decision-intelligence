@@ -70,6 +70,11 @@ Tuning means trying many hyperparameter settings and keeping the best. The trap:
 
 ### Three roles for data
 
+> **Question it answers:** Which data should fit the model, which should choose its settings, and which should judge it only once?
+>
+> **Other questions you can answer the same way:**
+> - Why can't I tune and evaluate on the same months?
+
 ```
 |──────── training ────────|── validation ──|─────────── test (rolling origins) ───────────|
    fit parameters             choose hyper-      judge the final method, ONCE
@@ -84,6 +89,11 @@ For time series, the three blocks must be in **chronological order**, and in a r
 
 ## 64.2 Time-Series Cross-Validation with a Gap (25 min)
 
+> **Question it answers:** How do I validate a forecasting model only on periods that come after its training data?
+>
+> **Other questions you can answer the same way:**
+> - How many validation folds can a monthly series support?
+
 scikit-learn's `TimeSeriesSplit` creates **expanding-window** folds in chronological order:
 
 ```
@@ -93,6 +103,11 @@ fold 3: train [══════════]            validate [──]
 ```
 
 ### Why a gap is essential for horizon *h*
+
+> **Question it answers:** How many months must separate training and validation so that 12-month-ahead targets don't leak?
+>
+> **Other questions you can answer the same way:**
+> - Is my cross-validation secretly using future inflation?
 
 Each row's target is *h* months ahead (Day 61). A training row at the end of a fold has a target date **inside** the validation period, which a real forecaster standing at the start of validation wouldn't yet know. That's the same trap as Day 61.4, inside cross-validation. The fix is a **gap of *h* rows** between training and validation:
 
@@ -127,6 +142,11 @@ Check the printout: between the last training month and the first validation mon
 ---
 
 ## 64.3 Randomized Search (23 min)
+
+> **Question it answers:** Which XGBoost settings give the lowest validation error, found by trying random combinations?
+>
+> **Other questions you can answer the same way:**
+> - Which hyperparameters matter most for this inflation model?
 
 **Grid search** tries every combination: with 6 hyperparameters and 4 values each, that's 4,096 settings × folds. **Randomized search** samples a fixed number of settings from **distributions**, and usually finds equally good settings much faster (most hyperparameters matter little; random sampling explores the important ones more efficiently).
 
@@ -180,6 +200,11 @@ Look at `std_test_score`: if the top settings' scores differ by less than their 
 ---
 
 ## 64.4 Bayesian Optimisation with Optuna (25 min)
+
+> **Question it answers:** Can a smarter search find good settings in fewer trials, by learning from earlier attempts?
+>
+> **Other questions you can answer the same way:**
+> - How many trials does Optuna need compared with random search?
 
 Randomized search ignores what it has learned. **Bayesian optimisation** uses past trials to propose more promising settings. **Optuna** is a popular library implementing this (with its default TPE sampler).
 
@@ -237,6 +262,11 @@ The **parameter importances** answer a practical question: *which knobs are wort
 
 ## 64.5 Nested Evaluation: Tuning Inside the Rolling Origin (20 min)
 
+> **Question it answers:** Would tuning the model on past data only have improved real-time forecasts?
+>
+> **Other questions you can answer the same way:**
+> - Is the tuned model's advantage real or an illusion of tuning on the test period?
+
 To know whether tuning **helps forecasts**, evaluate the **procedure** "tune on the past, then forecast" in the rolling-origin harness. At each refit, the model tunes itself using only data available at that origin. That's **nested** evaluation: inner loop (tuning CV) inside outer loop (rolling origins).
 
 Add a self-tuning estimator to `forecasting/tuning.py`:
@@ -278,6 +308,11 @@ tuned.to_parquet("data/forecasts/tuning_nested.parquet")
 ---
 
 ## 64.6 Mini-Project: Does Tuning Pay? (23 min)
+
+> **Question it answers:** Does the tuned XGBoost beat the default XGBoost and the benchmarks, and is the improvement significant?
+>
+> **Other questions you can answer the same way:**
+> - Is tuning worth the extra computing time?
 
 1. Load the Day 63 forecasts (`data/forecasts/univariate_forecasts.parquet`) and add `xgb_tuned`.
 2. Score with `score()` and run Diebold–Mariano tests: **`xgb_tuned` vs `xgboost` (default)**, and **`xgb_tuned` vs `naive`**, at each horizon.
@@ -402,6 +437,11 @@ Additivity is what makes SHAP perfect for economists: it's a **decomposition**, 
 
 ## 65.3 TreeSHAP for XGBoost: Global Explanations (28 min)
 
+> **Question it answers:** How much did each feature push each inflation forecast up or down?
+>
+> **Other questions you can answer the same way:**
+> - Which inputs does the model rely on?
+
 Create `forecasting/explain.py`:
 
 ```python
@@ -434,6 +474,11 @@ XGBoost can compute SHAP contributions **natively** (`pred_contribs=True`). It's
 
 ### Fit a model to explain
 
+> **Question it answers:** Which 12-month-ahead inflation model am I going to explain?
+>
+> **Other questions you can answer the same way:**
+> - How do I prepare a model and data for explanation?
+
 ```python
 import matplotlib.pyplot as plt
 import shap
@@ -457,6 +502,11 @@ print("additivity gap:", check_additivity(model, X_explain, contrib))
 (This model is trained on all available rows, which is fine for *explaining the model*. For forecasts we always use the rolling harness. Day 66 explains each real-time forecast.)
 
 ### Global picture: which features drive forecasts, and in which direction?
+
+> **Question it answers:** Which features matter most for the 12-month inflation forecast, and do high values push forecasts up or down?
+>
+> **Other questions you can answer the same way:**
+> - Does current inflation or recent momentum drive the forecast more?
 
 ```python
 explanation = shap.Explanation(values=contrib.drop(columns="base_value").to_numpy(),
@@ -492,6 +542,11 @@ Typically `yoy_lag0` and the moving averages dominate and push forecasts up when
 
 ## 65.4 Explaining a Single Forecast: Waterfall Plots (20 min)
 
+> **Question it answers:** Why did the model forecast this particular inflation number in June 2021, and what is driving the latest forecast?
+>
+> **Other questions you can answer the same way:**
+> - What would I tell a policymaker about why the forecast went up?
+
 Global plots describe the model. **Local** explanations describe **one forecast**, which is what an economist asks about in a briefing.
 
 ```python
@@ -515,6 +570,11 @@ Write a **two-sentence narrative** for each waterfall, the way you'd brief a pol
 ---
 
 ## 65.5 Out-of-Sample Importance: Permutation Importance (20 min)
+
+> **Question it answers:** Which features actually improve out-of-sample forecast accuracy, rather than just being used by the model?
+>
+> **Other questions you can answer the same way:**
+> - Could I drop a feature without losing accuracy?
 
 SHAP explains how the model **uses** features. **Permutation importance** asks a different, complementary question: *how much worse do forecasts become if a feature's information is destroyed?* It's measured **out of sample**, on data the model didn't train on.
 
@@ -595,6 +655,11 @@ git add forecasting notebooks && git commit -m "Day 65: Shapley values, TreeSHAP
 
 ## 66.1 Explaining Every Real-Time Forecast (28 min)
 
+> **Question it answers:** For every forecast made in the backtest, what were the feature contributions at that time?
+>
+> **Other questions you can answer the same way:**
+> - How did the drivers of the forecast change during 2021–22?
+
 Day 65 explained one model fitted on all data. But in the backtest, each origin's forecast came from a model **refitted on data available at that time**. To narrate history honestly ("in mid-2021 the model forecast X **because** Y"), explain each forecast **with the model that made it**.
 
 Extend the harness in `forecasting/evaluate.py` with an optional **explainer callback**:
@@ -661,6 +726,11 @@ print("max additivity gap:", (recon - check).abs().max())
 
 ## 66.2 Feature Families: A Forecast Decomposition Like CPI Contributions (20 min)
 
+> **Question it answers:** How much of each forecast comes from persistence, momentum and seasonality, like a contributions chart?
+>
+> **Other questions you can answer the same way:**
+> - Is the forecast high because inflation is high, or because it is accelerating?
+
 Twelve individual lags are too detailed for a briefing. Because SHAP values are **additive**, you can **sum** them over groups of related features, and the group totals still add up to the forecast.
 
 Add to `forecasting/explain.py`:
@@ -721,6 +791,11 @@ Questions for discussion:
 
 ## 66.3 Non-Linearities and Interactions: Dependence Plots (23 min)
 
+> **Question it answers:** How does the effect of current inflation on the forecast change with its level and with momentum?
+>
+> **Other questions you can answer the same way:**
+> - Does the model treat high inflation differently from low inflation?
+
 A **dependence plot** shows how a feature's SHAP value varies with the feature's value: the model's learned **response curve**, with interactions revealed by colour.
 
 ```python
@@ -750,6 +825,11 @@ Month-of-year interacts with **mom** features: a high month-over-month change in
 ---
 
 ## 66.4 Explanation Drift: Are the Model's Drivers Stable? (20 min)
+
+> **Question it answers:** Are the model's drivers stable from year to year, or do they shift sharply between refits?
+>
+> **Other questions you can answer the same way:**
+> - Should I trust a model whose reasoning keeps changing?
 
 If a model's explanations **change sharply** from one refit to the next, its forecasts rest on unstable foundations, even if its accuracy looks fine. Monitor **mean |SHAP| by family per year**:
 
@@ -785,6 +865,11 @@ Write `forecasting/publish_explanations.py` (in `.venv-ml`) that:
 3. writes `data/forecasts/latest_forecasts.parquet` (one row per horizon) and `data/forecasts/latest_explanations.parquet` (one row per horizon × feature, with family).
 
 ### Step 2 — A dashboard page
+
+> **Question it answers:** What is the inflation forecast with its range, and what drives it, on one page economists can read?
+>
+> **Other questions you can answer the same way:**
+> - How confident is the forecast compared with the naive benchmark?
 
 Add a function `forecast_explained(...)` to `dashboards/build_dashboards.py` (Day 60) that reads those files and draws, for the latest origin:
 - a **forecast path** for horizons 1–12 with the 80% band, after the last 36 months of actual inflation, with a dashed line at the 2% target;
@@ -899,6 +984,11 @@ The model weights are downloaded from the Hugging Face Hub the first time you lo
 
 ### A first forecast
 
+> **Question it answers:** What does a pretrained foundation model forecast for inflation, without any training on our data?
+>
+> **Other questions you can answer the same way:**
+> - What range does Chronos give for the next 12 months?
+
 ```python
 import numpy as np
 import torch
@@ -929,6 +1019,11 @@ Plot the history, the median path and the 10–90% band. Does the forecast rever
 ---
 
 ## 67.3 Chronos in the Rolling-Origin Harness (30 min)
+
+> **Question it answers:** How would the zero-shot Chronos model have performed in real time, using only data up to each forecast date?
+>
+> **Other questions you can answer the same way:**
+> - Does Chronos beat XGBoost or the naive benchmark?
 
 To compare fairly, Chronos must forecast from **the same origins**, using **only data up to each origin**. Because it needs no training, we can **batch** all origins in one call.
 
@@ -1004,6 +1099,11 @@ Point metrics (RMSE) ignore uncertainty. Chronos produces **quantiles**, so eval
 
 ### Pinball (quantile) loss
 
+> **Question it answers:** How good are the forecast ranges, not just the central forecasts?
+>
+> **Other questions you can answer the same way:**
+> - Which model gives the best-calibrated 10th and 90th percentiles?
+
 For quantile level *α*, forecast *q* and outcome *y*:
 
 **L_α(y, q) = α · (y − q) if y ≥ q, else (1 − α) · (q − y)**
@@ -1061,6 +1161,11 @@ Zero-shot doesn't mean choice-free. Run three small experiments, each through `r
 
 ### Experiment 1 — How much history should Chronos see?
 
+> **Question it answers:** Does Chronos forecast better with 3 years, 10 years or all of the inflation history?
+>
+> **Other questions you can answer the same way:**
+> - Does older history help or hurt?
+
 ```python
 for ctx in [36, 120, None]:            # 3 years, 10 years, all since 1992
     r = rolling_origin_chronos(y, [1, 12], "2012-01-01", pipe, f"chronos_ctx{ctx or 'all'}",
@@ -1072,6 +1177,11 @@ for ctx in [36, 120, None]:            # 3 years, 10 years, all since 1992
 Short contexts let the model focus on the current regime; long contexts show it the full range of behaviour, including mean reversion towards target.
 
 ### Experiment 2 — Forecast the level, then compute inflation
+
+> **Question it answers:** Is it better to forecast the CPI index and convert it to inflation, or to forecast inflation directly?
+>
+> **Other questions you can answer the same way:**
+> - Which target gives smaller errors at 12 months?
 
 Instead of forecasting yoy inflation directly, give Chronos the **CPI index** (with its seasonal pattern) and convert its forecast into yoy:
 
@@ -1098,6 +1208,12 @@ Try `amazon/chronos-bolt-tiny` and `amazon/chronos-bolt-base`. Record accuracy *
 ## 67.6 Forecast Combinations and the Day 67 Leaderboard (23 min)
 
 ### Combining forecasts
+
+> **Question it answers:** Does an equal-weight average of several models forecast inflation better than any single model?
+>
+> **Other questions you can answer the same way:**
+> - Which combination of models works best?
+> - Is the combination more reliable over time?
 
 A long literature, going back to Bates and Granger (1969), finds that **averaging forecasts from different models** often beats the individual models, especially when they make **different kinds of errors**. Simple equal weights are notoriously hard to beat with "optimised" weights (sometimes called the *forecast combination puzzle*).
 

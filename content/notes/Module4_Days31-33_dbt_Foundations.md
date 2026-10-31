@@ -132,6 +132,11 @@ macro_dbt/logs/
 
 ### Step 2 — `dbt_project.yml`: the project's settings
 
+> **Question it answers:** Where do I tell dbt the project's name, folders and default settings?
+>
+> **Other questions you can answer the same way:**
+> - Where do models, seeds and tests live in this project?
+
 Replace its content with:
 
 ```yaml
@@ -159,6 +164,11 @@ YAML (like TOML on Day 23) is a settings format where **indentation means nestin
 
 ### Step 3 — `profiles.yml`: how to connect
 
+> **Question it answers:** Which database does dbt write to, and how do I switch between development and production?
+>
+> **Other questions you can answer the same way:**
+> - Is this build going to the test schema or the real one?
+
 dbt looks for `profiles.yml` in the current folder before looking in `~/.dbt/`. Keeping it **in the project** makes the setup reproducible for everyone. There are no secrets here: a DuckDB connection is just a file path.
 
 Create `macro_dbt/profiles.yml`:
@@ -185,6 +195,11 @@ macro_dbt:
 
 ### Step 4 — Check the connection
 
+> **Question it answers:** Can dbt find my project and connect to the warehouse?
+>
+> **Other questions you can answer the same way:**
+> - Why won't dbt run? Is it the connection or the configuration?
+
 ```bash
 dbt debug
 ```
@@ -194,6 +209,11 @@ You want to see `All checks passed!`. If you see a lock error, quit any open `du
 ---
 
 ## 31.3 Sources: Telling dbt Where Raw Data Lives (23 min)
+
+> **Question it answers:** Which raw tables does the dbt project read from, and what does each contain?
+>
+> **Other questions you can answer the same way:**
+> - Where does each model's data originally come from?
 
 dbt distinguishes two kinds of inputs:
 
@@ -243,6 +263,11 @@ A **model** is a `.sql` file containing **one `SELECT` statement**. The file nam
 
 ### Model 1 — Hello, dbt
 
+> **Question it answers:** What is today's real rate, built as my first dbt model?
+>
+> **Other questions you can answer the same way:**
+> - How does dbt turn a SELECT statement into a view?
+
 Create `models/staging/hello_dbt.sql`:
 
 ```sql
@@ -264,6 +289,11 @@ You wrote a `SELECT`; dbt wrote `CREATE VIEW dev.hello_dbt AS SELECT …`. Delet
 > **Style note:** the dbt community writes SQL keywords in **lowercase**, and we follow that convention from now on. Case doesn't change the meaning. What matters is consistency.
 
 ### Model 2 — Staging BoC observations from a source
+
+> **Question it answers:** How do I turn the raw Bank of Canada table into a clean, typed staging model?
+>
+> **Other questions you can answer the same way:**
+> - What are the BoC observations with proper dates and names?
 
 Create `models/staging/stg_boc__observations.sql`:
 
@@ -291,6 +321,11 @@ dbt run --select stg_boc__observations
 `{{ source('raw_dlt', 'boc_observations') }}` compiles to the real table name (something like `"macro"."raw_dlt"."boc_observations"`). If a source is ever renamed or moved, you change the YAML, not every model.
 
 ### Model 3 — The full observations model (a port from Day 30)
+
+> **Question it answers:** What are all observations from every provider, cleaned and labelled in one model?
+>
+> **Other questions you can answer the same way:**
+> - Which series come from which provider, and in which units?
 
 Create `models/staging/stg_macro__observations.sql`, the dbt version of Day 30's `sql/12_stg_macro__observations.sql`. For today, series metadata still comes from the Module 2 seed table (we move it into dbt tomorrow):
 
@@ -348,6 +383,11 @@ Models reference other models with `{{ ref('model_name') }}`. From these referen
 
 ### An intermediate model using `ref()`
 
+> **Question it answers:** What is each series' monthly value, using the right aggregation rule (month-end or average)?
+>
+> **Other questions you can answer the same way:**
+> - What was the month-end policy rate and the average oil price each month?
+
 Create `models/intermediate/int_rates__monthly_long.sql`:
 
 ```sql
@@ -368,6 +408,11 @@ dbt run --select int_rates__monthly_long
 ```
 
 ### Selecting parts of the DAG
+
+> **Question it answers:** Which models feed into this model, and which models depend on it?
+>
+> **Other questions you can answer the same way:**
+> - If I change a staging model, what else needs rebuilding?
 
 | Selector | Builds |
 |---|---|
@@ -407,6 +452,11 @@ dbt ls --select stg_macro__observations+
 
 ### What dbt actually runs
 
+> **Question it answers:** What exact SQL does dbt send to the database for this model?
+>
+> **Other questions you can answer the same way:**
+> - Why does my model produce an error? What did the template turn into?
+
 ```bash
 dbt compile --select int_rates__monthly_long
 cat target/compiled/macro_dbt/models/intermediate/int_rates__monthly_long.sql
@@ -423,12 +473,22 @@ When something behaves oddly, **read the compiled SQL first**. It's plain DuckDB
 
 ### Previewing results without opening DuckDB
 
+> **Question it answers:** What do the first rows of a model look like, and how many months does each series have?
+>
+> **Other questions you can answer the same way:**
+> - Does my model give sensible results before I build it?
+
 ```bash
 dbt show --select int_rates__monthly_long --limit 5
 dbt show --inline "select series_name, count(*) as n from {{ ref('int_rates__monthly_long') }} group by 1"
 ```
 
 ### Mini-project: port `stg_statcan__cpi` and prove it matches
+
+> **Question it answers:** Does the dbt version of the CPI staging model give exactly the same rows as the Module 2 version?
+>
+> **Other questions you can answer the same way:**
+> - Did moving to dbt change any numbers?
 
 1. Create `models/staging/stg_statcan__cpi.sql`, the dbt version of Day 30's `sql/10_stg_statcan__cpi.sql`: same logic and column order, reading `{{ source('raw_dlt', 'statcan_cpi_full') }}` and (temporarily) joining `seeds.seed_geo`.
 2. Build it.
@@ -546,6 +606,11 @@ A **materialization** decides *how* a model's `SELECT` is persisted. You met the
 
 ### See the difference yourself
 
+> **Question it answers:** When should a model be stored as a table rather than recomputed as a view each time?
+>
+> **Other questions you can answer the same way:**
+> - Which models are slow enough to be worth storing?
+
 Change one model to a table **inside the file**, using a `config()` block at the top:
 
 ```sql
@@ -569,6 +634,11 @@ dbt show --inline "select table_schema, table_name, table_type from information_
 ```
 
 ### Ephemeral: a model that is only a CTE
+
+> **Question it answers:** How do I share a small building block between models without creating another object in the database?
+>
+> **Other questions you can answer the same way:**
+> - How do I keep helper steps out of the warehouse?
 
 ```sql
 -- models/intermediate/int_cpi__national_all_items.sql
@@ -596,6 +666,11 @@ An incremental model inserts or merges only **new** rows on each run, much like 
 
 ## 32.2 Where Configuration Lives (23 min)
 
+> **Question it answers:** If a setting is defined in several places, which one does dbt use?
+>
+> **Other questions you can answer the same way:**
+> - Why is my model a view when I asked for a table?
+
 Configurations can be set in three places. **The most specific wins:**
 
 ```
@@ -605,6 +680,11 @@ Configurations can be set in three places. **The most specific wins:**
 ```
 
 ### Folder-level defaults in `dbt_project.yml`
+
+> **Question it answers:** How do I make all staging models views and all marts tables by default?
+>
+> **Other questions you can answer the same way:**
+> - How do I set defaults for a whole layer at once?
 
 Replace the `models:` section:
 
@@ -622,6 +702,11 @@ models:
 Each key under `macro_dbt:` is a **folder** in `models/`. Every model in `models/marts/` is now a table by default, with no per-file configuration needed.
 
 ### Model-level override in a properties file
+
+> **Question it answers:** How do I make one intermediate model a table while the rest stay views?
+>
+> **Other questions you can answer the same way:**
+> - How do I document and configure a model in the same place?
 
 Create `models/intermediate/_intermediate.yml`:
 
@@ -641,6 +726,11 @@ Now remove the `{{ config(materialized='table') }}` line from the SQL file and r
 
 ### Checking what dbt resolved
 
+> **Question it answers:** Which materialization did dbt actually decide on for each model?
+>
+> **Other questions you can answer the same way:**
+> - Did my configuration take effect?
+
 ```bash
 dbt ls --select intermediate --output json --output-keys "name config"
 ```
@@ -650,6 +740,11 @@ This prints each model's final configuration after all three levels are combined
 ---
 
 ## 32.3 Custom Schemas (20 min)
+
+> **Question it answers:** How do I keep staging, intermediate and marts models in separate schemas?
+>
+> **Other questions you can answer the same way:**
+> - Which schema will this model be built in?
 
 Right now everything lands in one schema, `dev`. We want dbt's layers separated just like Module 2's (`staging`, `intermediate`, `marts`, `seeds`), **and** we want dev builds kept away from the Module 2 objects the dashboards currently use.
 
@@ -682,6 +777,11 @@ You'll see `dev_staging` and `dev_intermediate`. dbt's **default** rule is `<tar
 
 ### Making `prod` use the clean names
 
+> **Question it answers:** How do I get schemas named "staging" and "marts" in production, but prefixed ones in development?
+>
+> **Other questions you can answer the same way:**
+> - Why is my schema called dev_staging instead of staging?
+
 For production we want `staging`, not `main_staging`. dbt decides schema names with a built-in macro, `generate_schema_name`, and you can override it. Create `macros/generate_schema_name.sql`:
 
 ```sql
@@ -712,6 +812,12 @@ This is your first **macro**, a reusable piece of Jinja. Macros get a full treat
 In Module 2, seeds were `INSERT INTO … VALUES` statements in `sql/03_seeds.sql`. In dbt, a seed is simply a **CSV file** in `seeds/`, loaded with `dbt seed` and referenced with `ref()`.
 
 ### Create the CSVs
+
+> **Question it answers:** How do I keep reference tables (provinces, series, recession dates, CPI weights) as version-controlled CSV files?
+>
+> **Other questions you can answer the same way:**
+> - Which region is each province in?
+> - Which series should be averaged monthly?
 
 **`seeds/seed_geo.csv`**
 
@@ -803,6 +909,11 @@ decision_date,rate,change_bp,note
 
 ### Tell dbt the column types
 
+> **Question it answers:** How do I make sure seed columns get the right types instead of guessed ones?
+>
+> **Other questions you can answer the same way:**
+> - Why did a code like "01" lose its leading zero?
+
 dbt infers seed types, but, as on Day 24, **don't let inference decide** for important columns. Create `seeds/_seeds.yml`:
 
 ```yaml
@@ -842,6 +953,11 @@ dbt show --select seed_boc_decisions --limit 3
 
 ### Switch the staging models to the dbt seeds
 
+> **Question it answers:** How do I make the staging models use the dbt seeds instead of the old hand-built tables?
+>
+> **Other questions you can answer the same way:**
+> - Are all lookups now managed by dbt?
+
 In `stg_macro__observations.sql` and `stg_statcan__cpi.sql`, replace the temporary Module 2 references:
 
 ```sql
@@ -861,6 +977,11 @@ dbt build --select +stg_macro__observations +stg_statcan__cpi
 ---
 
 ## 32.5 Choosing Materializations with Evidence (20 min)
+
+> **Question it answers:** How do I port the CPI growth models and decide, with measurements, whether they should be views or tables?
+>
+> **Other questions you can answer the same way:**
+> - Is it worth storing growth rates for every CPI series?
 
 Port two intermediate models from Day 19. We'll measure the cost of a view vs a table rather than guessing.
 
@@ -905,6 +1026,11 @@ from lagged
 **`models/intermediate/int_cpi__smoothed.sql`**: port Day 19's `int_cpi__smoothed`, replacing `intermediate.int_cpi__growth` with `{{ ref('int_cpi__growth') }}`.
 
 ### The experiment
+
+> **Question it answers:** How much faster is a query on the smoothed CPI model when its parent is a table instead of a view?
+>
+> **Other questions you can answer the same way:**
+> - Where is the time going in this chain of models?
 
 ```bash
 dbt run --select int_cpi__growth int_cpi__smoothed        # both as views (folder default)
@@ -956,6 +1082,11 @@ Descriptions you write in YAML become a **documentation website**, generated fro
 
 ### Document the staging models
 
+> **Question it answers:** How do I describe each model and column so colleagues know the grain, the source and the caveats?
+>
+> **Other questions you can answer the same way:**
+> - What does each column in the CPI staging model mean?
+
 Create `models/staging/_staging.yml`:
 
 ```yaml
@@ -988,6 +1119,11 @@ models:
 
 ### Generate and browse
 
+> **Question it answers:** Where can I browse every model, its documentation and its lineage as a website?
+>
+> **Other questions you can answer the same way:**
+> - What depends on the observations staging model?
+
 ```bash
 dbt docs generate
 dbt docs serve --port 8080
@@ -1000,6 +1136,12 @@ Codespaces will offer to open the forwarded port in your browser. Explore:
 Press `Ctrl+C` in the terminal to stop the server.
 
 ### Mini-project
+
+> **Question it answers:** In each month, what were the BoC–Fed gap, the yield-curve spread and the USD per CAD rate, from one documented model?
+>
+> **Other questions you can answer the same way:**
+> - Was the yield curve inverted this month?
+> - How wide is the gap with the Fed?
 
 1. Port Day 20's `int_rates__monthly` (the **wide** version with derived columns `boc_fed_diff`, `spread_10_2_bp`, `usd_cad`) into `models/intermediate/int_rates__monthly.sql`, reading from `int_rates__monthly_long`.
 2. Document it in `_intermediate.yml`: grain, the aggregation rule, and each derived column.
@@ -1087,6 +1229,11 @@ git push
 
 ### A first template
 
+> **Question it answers:** How can SQL text be generated from variables and lists using Jinja?
+>
+> **Other questions you can answer the same way:**
+> - What SQL does a template produce?
+
 Create `analyses/jinja_playground.sql`. Files in `analyses/` are **compiled but never run**, which makes them perfect for experimenting.
 
 ```sql
@@ -1117,6 +1264,11 @@ Things to notice:
 
 ## 33.2 Variables, Lists and `for` Loops: Generating Columns (25 min)
 
+> **Question it answers:** How do I build one column per series (the wide monthly table) without writing the same line eight times?
+>
+> **Other questions you can answer the same way:**
+> - How do I add a new series column by editing one list?
+
 Yesterday's `int_rates__monthly` repeated the same line eight times. With a loop:
 
 ```sql
@@ -1141,6 +1293,11 @@ group by month
 Compile and read the output. It's the eight lines you typed yesterday, generated.
 
 ### Whitespace control
+
+> **Question it answers:** How do I keep the generated SQL tidy and readable?
+>
+> **Other questions you can answer the same way:**
+> - Why does my compiled SQL have so many blank lines?
 
 The compiled SQL contains blank lines where the `{% %}` tags were. A `-` inside a tag trims whitespace on that side:
 
@@ -1188,6 +1345,11 @@ window w as (order by month)
 
 ### What's in `target`?
 
+> **Question it answers:** Which target (dev or prod) and schema is this build running against?
+>
+> **Other questions you can answer the same way:**
+> - How can a model behave differently in development and production?
+
 ```sql
 -- analyses/jinja_playground.sql
 -- target.name   = {{ target.name }}
@@ -1196,6 +1358,11 @@ window w as (order by month)
 ```
 
 ### Faster dev builds on the big CPI table
+
+> **Question it answers:** How do I make development builds faster by using only recent CPI history?
+>
+> **Other questions you can answer the same way:**
+> - How do I avoid processing a million rows while I'm still testing?
 
 The full CPI table has over a million rows. In **dev** you rarely need 1914–2005:
 
@@ -1240,6 +1407,11 @@ group by month
 
 ## 33.4 Project Variables: `var()` and `--vars` (20 min)
 
+> **Question it answers:** Where do I keep values like the panel start date and inflation target so they're defined once?
+>
+> **Other questions you can answer the same way:**
+> - How do I change the inflation target used everywhere?
+
 Hard-coded values like `'2000-01'` or `2006-01-01` belong in **one place**. dbt's project variables play the role of `config.toml` (Day 23).
 
 Add to `dbt_project.yml`:
@@ -1276,6 +1448,11 @@ max(value) filter (where series_name = '{{ s }}') as {{ s }}{{ ',' if not loop.l
 
 ### Overriding from the command line
 
+> **Question it answers:** How do I build with a different start date just for this run?
+>
+> **Other questions you can answer the same way:**
+> - How do I test a model on only the last few years?
+
 ```bash
 dbt compile --select stg_statcan__cpi --vars '{dev_cpi_start: "2020-01"}'
 ```
@@ -1294,6 +1471,11 @@ The `--vars` value is YAML inside single quotes. It overrides `dbt_project.yml` 
 ---
 
 ## 33.5 Looping over Structures: Gap-Safe Growth Rates in 15 Lines (20 min)
+
+> **Question it answers:** How do I generate month-over-month, 3-month, 6-month and year-over-year inflation from one short list?
+>
+> **Other questions you can answer the same way:**
+> - How do I add a new growth horizon with one line?
 
 Loops aren't limited to strings. A list of **dictionaries** can describe a whole family of calculations. Here is Day 19's gap-safe growth logic, with each measure described once:
 
@@ -1402,6 +1584,11 @@ from lagged
 ---
 
 ## 33.6 Capstone: A Jinja-Powered Intermediate Layer + Regression Check (28 min)
+
+> **Question it answers:** Do the new dbt intermediate models produce exactly the same numbers as the Module 2 views?
+>
+> **Other questions you can answer the same way:**
+> - Which rows differ between the old and new versions, if any?
 
 Bring the dbt project up to parity with Module 2's staging and intermediate layers, using Jinja where it genuinely helps.
 

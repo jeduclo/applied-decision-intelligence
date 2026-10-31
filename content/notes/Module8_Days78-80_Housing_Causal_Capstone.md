@@ -54,6 +54,11 @@ CAPSTONE.md                            ← NEW: the final capstone report
 
 ## 78.1 Finding the Right Housing-Starts Series (23 min)
 
+> **Question it answers:** Which StatCan table and vector contain CMHC's monthly, seasonally adjusted national housing starts?
+>
+> **Other questions you can answer the same way:**
+> - How do I find the right series among thousands of StatCan tables?
+
 Canadian housing starts are compiled by the **Canada Mortgage and Housing Corporation (CMHC)** and published through Statistics Canada tables. The course notebook used table **34-10-0135-01** for a quarterly chart. For our **monthly** design we want a **monthly, seasonally adjusted (at annual rates, SAAR), national total** series.
 
 Rather than guess a table number, **search the catalogue**, just as you searched the Valet catalogue on Day 8. StatCan's WDS lists all tables:
@@ -93,6 +98,11 @@ Adding a series now takes **configuration, not code**, the payoff of Modules 3�
 
 ### 1. Ingestion (dlt, Day 23)
 
+> **Question it answers:** How do I add housing starts to the series the pipeline loads every day?
+>
+> **Other questions you can answer the same way:**
+> - How do I add any new StatCan vector to the pipeline?
+
 In `.dlt/config.toml`, add the vector to the StatCan vector list:
 
 ```toml
@@ -105,6 +115,11 @@ New vectors load their full history automatically on the first run (Day 30's `in
 
 ### 2. The series seed (Days 30, 35, 38)
 
+> **Question it answers:** How do I describe the new housing-starts series so every layer knows its source, frequency and staleness limit?
+>
+> **Other questions you can answer the same way:**
+> - Will housing starts appear automatically in the monthly panel?
+
 Add a row to `macro_dbt/seeds/seed_series.csv`:
 
 ```csv
@@ -115,6 +130,11 @@ Setting `in_rates_panel = true` makes the monthly panel **pick up the new column
 
 ### 3. Run the pipeline
 
+> **Question it answers:** Does the full pipeline load and publish the housing-starts series?
+>
+> **Other questions you can answer the same way:**
+> - Is housing starts now in the monthly mart?
+
 ```bash
 source .venv/bin/activate
 python -m orchestration.flows.daily_refresh            # or: trigger prod-evening from the Prefect UI
@@ -123,6 +143,11 @@ python -m orchestration.flows.daily_refresh            # or: trigger prod-evenin
 dlt loads the series; dbt rebuilds `int_macro__observations` → `int_rates__monthly` → `macro_monthly` (with a new `housing_starts` column) and exports Parquet. The `relationships` test confirms the vector is in the seed, and the freshness test starts watching it.
 
 ### 4. Quality expectations (GX, Day 44)
+
+> **Question it answers:** Is the housing-starts series complete, positive, in a plausible range and up to date?
+>
+> **Other questions you can answer the same way:**
+> - Would a units error (thousands vs units) be caught?
 
 Create `quality/specs/housing_starts.yml`, with a query asset selecting the series from `int_macro__observations` (register it in `setup_gx.py`):
 
@@ -160,6 +185,12 @@ Add `housing_starts` to the column documentation of `macro_monthly` (a doc block
 
 ## 78.3 Profiling and Sanity Checks (18 min)
 
+> **Question it answers:** What does the housing-starts series look like: its range, start and end dates, and how it moved with the overnight rate?
+>
+> **Other questions you can answer the same way:**
+> - How volatile are monthly housing starts?
+> - Did starts fall during past tightening cycles?
+
 Before estimating anything, **look at the data**, as you have before every analysis in this course.
 
 ```python
@@ -190,6 +221,11 @@ Checks:
 
 ## 78.4 Running the Pre-Registered Design (28 min)
 
+> **Question it answers:** What is the estimated effect of a rate increase on housing starts at 3, 6, 12, 18 and 24 months, using the design fixed in advance?
+>
+> **Other questions you can answer the same way:**
+> - How large is the effect after one year?
+
 This is the moment the whole module prepared for:
 
 ```bash
@@ -211,6 +247,11 @@ Read the main table in the report (`data/causal/report_housing_starts_*.md`):
 
 ### From θ to policy language
 
+> **Question it answers:** What does a 25-basis-point hike do to housing starts, in percent and in units per year?
+>
+> **Other questions you can answer the same way:**
+> - How many fewer homes would be started after a typical hike?
+
 Rate decisions usually move in **25bp** steps, so translate:
 
 **effect of a 25bp hike = θ / 4** (percent of housing starts after *h* months)
@@ -228,6 +269,11 @@ print(main[["h", "theta", "ci_lo", "ci_hi", "per_25bp_pct", "per_25bp_units_saar
 Don't interpret yet beyond sign, magnitude and precision. Day 79 does the full interpretation, after robustness and sensitivity.
 
 ### Compare with the naive regression
+
+> **Question it answers:** How different is the naive estimate (no controls) from the DML estimate, and why?
+>
+> **Other questions you can answer the same way:**
+> - Does ignoring the business cycle hide or reverse the effect?
 
 Also run the **naive** estimate (housing growth on the rate change, no controls) and the **linear-controls** estimate (OLS learners), and keep them for the memo:
 
@@ -247,6 +293,11 @@ If the naive estimate is **less negative** (or positive) and the DML estimate mo
 ---
 
 ## 78.5 Diagnostics: Is the Design Working? (20 min)
+
+> **Question it answers:** Where does the variation that identifies the effect come from: which months had surprising rate moves given the economy?
+>
+> **Other questions you can answer the same way:**
+> - Is the effect estimated from a few unusual episodes?
 
 | Diagnostic | Where | Healthy sign | Worry |
 |---|---|---|---|
@@ -337,6 +388,11 @@ Interpret along four dimensions, in this order:
 
 ## 79.2 Sensitivity to Unobserved Confounding (30 min)
 
+> **Question it answers:** How strong would an unobserved confounder (sentiment, supply constraints) have to be to make the effect disappear?
+>
+> **Other questions you can answer the same way:**
+> - How fragile is the conclusion to things we can't measure?
+
 Day 73's DAG flagged **unobserved confounders**: sentiment, supply constraints, population growth. The placebo test can reveal some confounding, but not prove its absence. **Sensitivity analysis** asks the complementary question:
 
 > *How strong would an unobserved confounder have to be to change our conclusion?*
@@ -412,6 +468,11 @@ for name, b in bench.items():
 
 ## 79.3 Asymmetry: Are Hikes Different from Cuts? (25 min)
 
+> **Question it answers:** Do rate hikes reduce housing starts by more (or less) than cuts increase them?
+>
+> **Other questions you can answer the same way:**
+> - Is the effect of tightening the same size as easing?
+
 The curriculum asks about rate **hikes**. Our θ averages over increases **and** decreases. Do hikes and cuts have **symmetric** effects? Housing could respond more sharply to tightening (credit constraints bind) than to easing.
 
 The partially linear model handles **several treatments**: split the rate change into its positive and negative parts,
@@ -473,6 +534,11 @@ Interpretation:
 
 ## 79.4 Heterogeneity: Does the Effect Depend on the Economic Regime? (20 min)
 
+> **Question it answers:** Is the effect of a hike on housing starts larger when inflation is above 3%?
+>
+> **Other questions you can answer the same way:**
+> - Does tightening bite harder when rates are already high?
+
 Does tightening bite harder in some conditions, e.g. when inflation is high, or when rates are already elevated? Use an **interaction treatment**: with a pre-treatment regime indicator *R* (part of X),
 
 **Y = θ_low·D + δ·(D × R) + g(X) + ε,  θ_high = θ_low + δ**
@@ -497,6 +563,11 @@ If you load the **full** CMHC/StatCan table through WAP (Day 50) with provincial
 ---
 
 ## 79.5 Naive vs DML: Telling the Confounding Story with Data (18 min)
+
+> **Question it answers:** At each horizon, how do the naive, linear and DML estimates compare, and what does that say about confounding?
+>
+> **Other questions you can answer the same way:**
+> - What one chart best explains why causal methods matter here?
 
 One chart communicates the whole module. For each horizon, plot three estimates with intervals:
 1. **naive** (no controls);
@@ -538,6 +609,11 @@ If the naive line sits **above** the adjusted ones, the gap is the **confounding
 ---
 
 ## 79.6 Writing the Policy Memo (23 min)
+
+> **Question it answers:** What is the effect of rate increases on housing starts, how confident are we, and what are the caveats, in two pages for a policymaker?
+>
+> **Other questions you can answer the same way:**
+> - What should a housing ministry take away from this analysis?
 
 Write `causal/MEMO.md`, two pages at most, for a reader at the Bank of Canada or a housing ministry who isn't a methods specialist:
 
@@ -612,6 +688,11 @@ Like forecasts (Day 70), causal estimates are **data**: kept, versioned, tested 
 
 ### Provenance in `run_design.py`
 
+> **Question it answers:** Which data, specification, code version and library versions produced each estimate?
+>
+> **Other questions you can answer the same way:**
+> - Can someone reproduce the number in the memo exactly?
+
 Extend the output rows with metadata, so every estimate can be traced:
 
 ```python
@@ -630,6 +711,11 @@ checks = checks.assign(**run_meta)
 ```
 
 ### dbt models
+
+> **Question it answers:** How do I make the causal estimates and checks available as tested tables in the warehouse?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest estimated effect, and did its checks pass?
 
 `macro_dbt/models/staging/causal/_causal__sources.yml`:
 
@@ -669,6 +755,11 @@ Add a similar `causal_checks_latest` from the robustness outputs, with tests: `u
 ---
 
 ## 80.2 Orchestrating the Causal Analysis (20 min)
+
+> **Question it answers:** How do I re-estimate the causal effect automatically each month when new data arrive?
+>
+> **Other questions you can answer the same way:**
+> - Did the latest estimate change much from last month?
 
 Causal analysis doesn't need to run daily. It should run **when its inputs change meaningfully**:
 - on a **monthly** schedule (new housing-starts data);
@@ -726,6 +817,11 @@ Update `STATE_POLICY.md`: a failed causal run is a **warning** for the platform 
 ---
 
 ## 80.3 The "Monetary Policy & Housing" Dashboard (23 min)
+
+> **Question it answers:** How have housing starts and the policy rate moved together, and what is the estimated effect of a 25bp hike over time?
+>
+> **Other questions you can answer the same way:**
+> - What would I show a decision-maker in one page?
 
 Add a page to `dashboards/build_dashboards.py`, reading only exported marts:
 
@@ -814,6 +910,11 @@ The curriculum's final capstone links the Prefect-orchestrated pipeline to inter
 
 ### `CAPSTONE.md`: the final report
 
+> **Question it answers:** What does the whole platform do, how do I run it, and where are the data, forecasts, causal results and operations documented?
+>
+> **Other questions you can answer the same way:**
+> - Where should a new team member start?
+
 Write it at the repository root, as the entry point for anyone discovering your project:
 
 ```markdown
@@ -854,6 +955,11 @@ Use the Day 60 production-readiness checklist, extended with the forecasting mod
 ## 80.6 Course Wrap-Up (18 min)
 
 ### What you built in 80 days
+
+> **Question it answers:** What did each module add, and how do the pieces form one decision-intelligence platform?
+>
+> **Other questions you can answer the same way:**
+> - Which tools answer which kinds of economic questions?
 
 ```
 Days 1–10   Python, pandas, REST APIs           → reliable extraction from BoC, FRED, StatCan

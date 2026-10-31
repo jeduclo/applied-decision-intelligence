@@ -84,6 +84,11 @@ macro-data-course/
 
 ### Workflows as Python, not as diagrams
 
+> **Question it answers:** How can a workflow decide what to do next using ordinary Python (for example, publish only if there are new rows)?
+>
+> **Other questions you can answer the same way:**
+> - How do I skip publishing on days with no new data?
+
 Some orchestrators (Airflow is the best known) make you declare a **static graph** of tasks up front. Prefect builds the graph **dynamically from your Python code**: if you call task B with the output of task A, B depends on A. Loops, `if` statements and function calls work as usual.
 
 ```python
@@ -119,6 +124,11 @@ prefect version
 
 ### Start a local Prefect server
 
+> **Question it answers:** How do I start the service that records every run and shows them in a web dashboard?
+>
+> **Other questions you can answer the same way:**
+> - Where can I see what ran, when, and whether it succeeded?
+
 The Prefect **server** stores run history and serves the UI. Open a **second terminal** (it will keep running):
 
 ```bash
@@ -152,6 +162,11 @@ We'll run flows as modules from the repository root, e.g. `python -m orchestrati
 ---
 
 ## 51.3 Your First Flow (20 min)
+
+> **Question it answers:** What is the real policy rate compared with the 2% target, run as a tracked workflow?
+>
+> **Other questions you can answer the same way:**
+> - How do I make any Python function a run I can monitor?
 
 Create `orchestration/flows/hello.py`:
 
@@ -198,6 +213,12 @@ Add `raise ValueError("CPI data missing")` before the `return`, run again, and l
 ---
 
 ## 51.4 Tasks: The Observable Steps Inside a Flow (25 min)
+
+> **Question it answers:** How long did each step (fetching CPI, computing inflation, reporting) take, and did each one succeed?
+>
+> **Other questions you can answer the same way:**
+> - Which step of the workflow is the slowest?
+> - Which step failed?
 
 A **task** is a function decorated with `@task`, called from inside a flow. Each call becomes a **task run** with its own state, logs and timing.
 
@@ -289,6 +310,12 @@ def real_rate(overnight: float, yoy: float) -> float:
 
 ## 51.5 Parameters and Type Hints (18 min)
 
+> **Question it answers:** Which series, start date and lookback did each run use, and are those inputs valid?
+>
+> **Other questions you can answer the same way:**
+> - What settings did last Tuesday's run use?
+> - Will a typo in a date be caught before the run starts?
+
 A flow's **function arguments are its parameters**. Prefect records them for every run and **validates** them against the type hints, converting where it safely can.
 
 ```python
@@ -324,6 +351,11 @@ Why this matters:
 
 ## 51.6 Logging (10 min)
 
+> **Question it answers:** How do I record warnings, such as a series being older than its tolerance, in the run's log?
+>
+> **Other questions you can answer the same way:**
+> - Which series were stale in today's run?
+
 `print` with `log_prints=True` is fine for learning. In real flows, use Prefect's **run logger**, which attaches each message to the right flow or task run, with a **level**:
 
 ```python
@@ -357,6 +389,12 @@ In the UI, filter the run's logs by level to see only warnings. That's the same 
 ---
 
 ## 51.7 Mini-Project: A CPI Briefing Flow (20 min)
+
+> **Question it answers:** What are the latest CPI inflation figures from StatCan, delivered as a tracked, repeatable briefing?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation inside the target band this month?
+> - How did inflation change since last month?
 
 Create `orchestration/flows/cpi_briefing.py`: a flow that fetches **real** data and produces a short inflation briefing.
 
@@ -467,6 +505,11 @@ git push
 
 ## 52.1 Dependencies: Data vs `wait_for` (20 min)
 
+> **Question it answers:** How do I make one step wait for another when no data passes between them?
+>
+> **Other questions you can answer the same way:**
+> - How do I make sure dbt only runs after the tables are published?
+
 Prefect infers dependencies from **data**: if a task receives another task's output, it runs after it. But some steps depend on each other **without passing data**:
 
 > *dbt must run after the StatCan tables are published, but it doesn't take their output as a Python argument. It reads the warehouse.*
@@ -509,6 +552,11 @@ if __name__ == "__main__":
 ---
 
 ## 52.2 Concurrency: `submit`, `map` and Futures (30 min)
+
+> **Question it answers:** How do I fetch five Bank of Canada series at the same time instead of one after another?
+>
+> **Other questions you can answer the same way:**
+> - How much faster is the refresh when downloads run in parallel?
 
 Calling a task directly (`fetch(x)`) runs it and **waits** for the result. That's sequential. Many of our steps are independent **API calls** that spend most of their time waiting on the network. Running them **concurrently** saves time.
 
@@ -596,6 +644,11 @@ With 2 workers, the five calls run in three waves (2 + 2 + 1), so the time is ro
 
 ## 52.3 Subflows: Structuring a Large Workflow (20 min)
 
+> **Question it answers:** How do I organise a long workflow into stages (ingest, transform, quality) that I can see separately?
+>
+> **Other questions you can answer the same way:**
+> - Which stage of the refresh failed?
+
 A **subflow** is simply a flow called from inside another flow. It appears in the UI as a **nested run**, with its own tasks, logs and state.
 
 ```python
@@ -674,6 +727,11 @@ Given Day 50's lesson (separate processes release DuckDB cleanly) and the separa
 
 ### Central settings
 
+> **Question it answers:** Where are the paths and Python environments that every step needs defined once?
+>
+> **Other questions you can answer the same way:**
+> - Which Python does the GX step use?
+
 Create `orchestration/settings.py`:
 
 ```python
@@ -699,6 +757,11 @@ ENV = {
 `sys.executable` is the Python interpreter currently running, the `.venv` one. So `ingest.py` runs with exactly the libraries Prefect sees.
 
 ### The generic step task
+
+> **Question it answers:** How do I run any existing script or command (dlt, dbt, GX) as a tracked step with its exit code and duration?
+>
+> **Other questions you can answer the same way:**
+> - What did each command print, and how long did it take?
 
 Create `orchestration/tasks/commands.py`:
 
@@ -738,6 +801,11 @@ def run_step(name: str, cmd: list[str], cwd: str | None = None) -> dict:
 
 ## 52.5 Inspecting Runs from the Command Line (13 min)
 
+> **Question it answers:** What were the most recent runs, their states and durations, and what did a given run log?
+>
+> **Other questions you can answer the same way:**
+> - Did last night's refresh succeed?
+
 The UI is convenient, but the CLI is scriptable and works over SSH:
 
 ```bash
@@ -751,6 +819,11 @@ prefect flow-run logs <flow-run-id>           # its log lines
 ---
 
 ## 52.6 Mini-Project: `daily_refresh` v1 (25 min)
+
+> **Question it answers:** How do I run the whole pipeline (ingest, publish, dbt, quality) as one tracked flow with stages?
+>
+> **Other questions you can answer the same way:**
+> - Does the flow behave exactly like pipeline.sh?
 
 Rebuild `pipeline.sh` as a flow with **subflows** per stage, using `run_step`. Today, keep `pipeline.sh`'s behaviour: tolerate exit code 2 from ingestion; stop on anything else. Tomorrow we replace this with an explicit state policy.
 
@@ -862,6 +935,11 @@ git add orchestration && git commit -m "Day 52: concurrency, subflows, daily_ref
 
 ## 53.1 The State Model (23 min)
 
+> **Question it answers:** What state can a run be in (scheduled, running, completed, failed, crashed, cancelled), and what does each mean?
+>
+> **Other questions you can answer the same way:**
+> - Did the run fail because of bad data or because the machine crashed?
+
 Every flow run and task run moves through **states**. The **state type** says where it is; the **state name** can add detail; the **message** explains why.
 
 ```
@@ -903,6 +981,11 @@ In `cpi_briefing.py`, change the vector ID to a non-existent one (e.g. `99999999
 ---
 
 ## 53.2 Inspecting States Without Crashing: `return_state=True` (23 min)
+
+> **Question it answers:** How do I check whether a step failed and decide what to do, without the whole flow stopping?
+>
+> **Other questions you can answer the same way:**
+> - Can the flow continue when one ingestion step fails?
 
 By default, calling a failed task **raises** inside the flow, which ends the flow. Often you want to **look at the outcome and decide**. Pass `return_state=True`:
 
@@ -949,6 +1032,11 @@ The flow above ends **Completed**: it handled the failure itself. Whether that's
 
 ## 53.3 Custom States: *Completed with Warnings* (23 min)
 
+> **Question it answers:** How do I mark a run as "finished, but with warnings" instead of plain success or failure?
+>
+> **Other questions you can answer the same way:**
+> - Which runs need review even though they didn't fail?
+
 Our tools have a middle outcome that plain Completed/Failed can't express: **exit code 2**, meaning "done, but look at this" (partial ingestion, quarantined release, GX warnings). Prefect lets a task or flow **return a state** with a **custom name** and **message**:
 
 ```python
@@ -962,6 +1050,11 @@ Failed(message="critical GX failure: L01 rate out of range")
 The **type** remains `COMPLETED` or `FAILED`, so everything that depends on success still works correctly. The **name** shows up in the UI, so a warning run is visibly different from a clean one.
 
 ### A step task that interprets its exit code
+
+> **Question it answers:** How do I turn our exit codes (0 ok, 1 failure, 2 warnings) into Prefect states automatically?
+>
+> **Other questions you can answer the same way:**
+> - Did this step pass, warn or fail?
 
 Add to `orchestration/tasks/commands.py`:
 
@@ -996,6 +1089,12 @@ Before coding, **write the policy down**. It's a decision about data risk, and s
 
 ### `orchestration/STATE_POLICY.md`
 
+> **Question it answers:** For each step, what counts as success, warning or failure, and should later steps continue?
+>
+> **Other questions you can answer the same way:**
+> - Should quality checks run if dbt failed?
+> - Should we publish if some series failed to load?
+
 ```markdown
 # Daily refresh — state policy
 
@@ -1016,6 +1115,11 @@ Before coding, **write the policy down**. It's a decision about data risk, and s
 Why continue after an ingestion failure? Thanks to incremental loading (Day 27) and WAP (Day 50), the warehouse is **consistent** even when today's ingestion fails. Rebuilding dbt keeps marts coherent and lets GX report staleness. But the run must still end **Failed**, so someone investigates.
 
 ### The flow, following the policy
+
+> **Question it answers:** How does the refresh flow apply the state policy so that every combination of outcomes ends correctly?
+>
+> **Other questions you can answer the same way:**
+> - What will the final state be if ingestion warns but quality passes?
 
 Replace `orchestration/flows/daily_refresh.py`:
 
@@ -1111,6 +1215,11 @@ Compare with `pipeline.sh`: every `|| [ $? -eq 2 ]` and `set +e` is replaced by 
 
 ## 53.5 State Hooks: Alerts on Failure (15 min)
 
+> **Question it answers:** How do I send an alert automatically when a run fails or finishes with warnings?
+>
+> **Other questions you can answer the same way:**
+> - Who gets notified, and with what message?
+
 A **state hook** is a function Prefect calls when a run **enters** a given state. It's the natural place for notifications, and it replaces the alert calls scattered through `pipeline.sh`.
 
 ```python
@@ -1148,6 +1257,11 @@ Tasks accept hooks too (`@task(on_failure=[...])`, with the signature `(task, ta
 ---
 
 ## 53.6 Artifacts: A Run Report Economists Can Read (15 min)
+
+> **Question it answers:** What did each step do in this run, and what do the latest KPIs say, shown as a readable report in the dashboard?
+>
+> **Other questions you can answer the same way:**
+> - What should I tell my manager about this morning's data?
 
 **Artifacts** are rich outputs attached to a run and shown in the UI: tables, Markdown reports and links. They turn a run from "green or red" into **evidence**.
 
@@ -1214,6 +1328,11 @@ Assemble the pieces: state policy (53.4), hooks (53.5) and artifacts (53.6). The
 
 ### A drill parameter
 
+> **Question it answers:** How do I simulate a step failing or warning without actually breaking anything?
+>
+> **Other questions you can answer the same way:**
+> - How do I rehearse a failure safely?
+
 In `run_step_with_state`, accept an optional `force_exit: int | None = None`. If set, skip the real command and pretend it exited with that code:
 
 ```python
@@ -1227,6 +1346,12 @@ In `run_step_with_state`, accept an optional `force_exit: int | None = None`. If
 and add a flow parameter `drill: dict[str, int] | None = None`, passing `force_exit=(drill or {}).get(step_name)` to each step.
 
 ### Run the drills
+
+> **Question it answers:** For each simulated failure, does the flow end in the state the policy says it should?
+>
+> **Other questions you can answer the same way:**
+> - Would a dbt failure correctly skip the quality checks?
+> - Does a quality warning produce a warning state?
 
 ```python
 from orchestration.flows.daily_refresh import daily_refresh

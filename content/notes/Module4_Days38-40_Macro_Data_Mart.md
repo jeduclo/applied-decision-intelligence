@@ -63,6 +63,11 @@ A mart is a **product**. Before writing SQL, write down who uses it and what the
 
 ### From questions to schema
 
+> **Question it answers:** Which tables does the mart need so that each dashboard question can be answered with one simple query?
+>
+> **Other questions you can answer the same way:**
+> - Which table answers questions about the yield curve, and which answers monthly macro questions?
+
 ```
                     dim_date          dim_series (country, instrument, tenor)
                         │                   │
@@ -109,6 +114,11 @@ The curve needs a middle tenor, and the open-economy questions need US yields.
 
 ### Step 1 — Configuration (`.dlt/config.toml`)
 
+> **Question it answers:** Which additional Canadian and US yields and rates do I need for the yield-curve and open-economy analysis?
+>
+> **Other questions you can answer the same way:**
+> - How do I add the 5-year yields and the daily Fed funds rate?
+
 ```toml
 [sources.boc]
 series_ids = ["V39079", "FXCADUSD", "BD.CDN.2YR.DQ.YLD", "BD.CDN.5YR.DQ.YLD", "BD.CDN.10YR.DQ.YLD"]
@@ -123,6 +133,11 @@ lookback_days = 180
 
 ### Step 2 — Ingest
 
+> **Question it answers:** How do I load the newly configured series into the warehouse?
+>
+> **Other questions you can answer the same way:**
+> - Did the new series arrive?
+
 ```bash
 cd /workspaces/macro-data-course
 source .venv/bin/activate
@@ -136,6 +151,12 @@ If `dbt build` now fails the `relationships` test from Day 36 (*"series_id not i
 ---
 
 ## 38.3 A Richer Series Dimension (23 min)
+
+> **Question it answers:** For each series, which country, instrument type and maturity does it represent?
+>
+> **Other questions you can answer the same way:**
+> - Which series are government yields, and at which tenors?
+> - Which series are Canadian versus US?
 
 The mart needs to know **what kind of thing** each series is. Extend `macro_dbt/seeds/seed_series.csv`:
 
@@ -217,6 +238,12 @@ Because `int_rates__monthly` builds its columns from the seed (Day 35's `run_que
 
 ## 38.4 `fct_yield_curve`: The Curve as Data (23 min)
 
+> **Question it answers:** What were Canadian and US government yields at every maturity on every date?
+>
+> **Other questions you can answer the same way:**
+> - What did the curve look like on a given day?
+> - How does the 2-year compare with the 10-year?
+
 A yield curve is naturally **long**: for each date and country, a set of (tenor, yield) points. Long format makes curve charts and cross-country comparisons trivial.
 
 Create `models/marts/rates/fct_yield_curve.sql` (make the `rates` folder):
@@ -272,6 +299,12 @@ models:
 
 ### Using it: Q1 in one query
 
+> **Question it answers:** What does the Canadian yield curve look like today, one year ago, and at the 2023 tightening peak?
+>
+> **Other questions you can answer the same way:**
+> - Has the curve steepened or flattened over the past year?
+> - Is the curve inverted today?
+
 Save as `analyses/yield_curve_snapshots.sql`:
 
 ```sql
@@ -323,6 +356,12 @@ dbt show --inline "$(cat target/compiled/macro_dbt/analyses/yield_curve_snapshot
 Daily series don't share a calendar: Canadian and US holidays differ, FRED sometimes lags by a day, and oil trades on different days. To compute cross-market returns and correlations we need **one row per business day** with every series aligned.
 
 ### Design
+
+> **Question it answers:** How do I line up daily series that trade on different holidays, without carrying stale values too far?
+>
+> **Other questions you can answer the same way:**
+> - What was every market price on each business day?
+> - How old is each value I'm using?
 
 1. A **spine** of weekdays from `dim_date`.
 2. For each daily series, an **ASOF join** attaches the latest value on or before that day.
@@ -402,6 +441,11 @@ order by date_day desc limit 10"
 ```
 
 ### Tests
+
+> **Question it answers:** Is the daily market panel one row per weekday, and are forward-filled values never too old?
+>
+> **Other questions you can answer the same way:**
+> - Did a holiday create a stale value that's too old?
 
 ```yaml
 # models/intermediate/markets/_markets__models.yml
@@ -486,6 +530,12 @@ The notebook already charts several of these (BoC–Fed differential vs USD/CAD;
 
 ## 39.2 `int_open_economy__daily`: Spreads, Slopes, Returns (33 min)
 
+> **Question it answers:** Each day, what were the Canada–US yield spreads, curve slopes, policy gap, and daily returns of the dollar and oil?
+>
+> **Other questions you can answer the same way:**
+> - Are Canadian 2-year yields above or below US ones?
+> - How much did the dollar move today?
+
 Create `models/intermediate/markets/int_open_economy__daily.sql`:
 
 ```sql
@@ -549,6 +599,12 @@ Why **log returns**? They add up over time (the log change over a month is the s
 ---
 
 ## 39.3 Rolling Volatility, Correlations and Betas (23 min)
+
+> **Question it answers:** Over the last three months, how volatile was USD/CAD, how closely did it move with oil and the yield spread, and how sensitive was it to oil?
+>
+> **Other questions you can answer the same way:**
+> - Is the loonie still trading as a petro-currency?
+> - Has FX volatility risen recently?
 
 Now the **dynamics**. We add rolling statistics over a 60-business-day window (about three months), producing `NULL` until the window is full, as `rolling_avg` did on Day 37.
 
@@ -614,6 +670,11 @@ A **negative** `corr_usdcad_2y_spread` means: when Canadian 2-year yields rise r
 
 ### Tests and docs
 
+> **Question it answers:** Is the daily open-economy table complete, with sensible values and rolling statistics only after a full window?
+>
+> **Other questions you can answer the same way:**
+> - What does each column mean, and in which units?
+
 ```yaml
 # models/marts/open_economy/_open_economy__models.yml
 version: 2
@@ -655,6 +716,11 @@ from {{ ref('fct_open_economy_daily') }} order by date_day desc limit 10"
 
 ### Monthly open-economy aggregates
 
+> **Question it answers:** Each month, what were the month-end dollar and oil prices, the average spreads, and how many trading days contributed?
+>
+> **Other questions you can answer the same way:**
+> - What was the average Canada–US spread last month?
+
 `models/intermediate/markets/int_open_economy__monthly.sql`:
 
 ```sql
@@ -679,6 +745,12 @@ group by 1
 `sum(usd_cad_logret)` is the monthly log change, the additivity of log returns in action.
 
 ### `marts/macro/macro_monthly.sql`: the monthly one-big-table
+
+> **Question it answers:** In each month, what were rates, inflation measures, real rates, the yield curve, FX, oil and open-economy indicators, all in one row?
+>
+> **Other questions you can answer the same way:**
+> - Was the real policy rate positive when inflation peaked?
+> - How did the dollar behave during tightening?
 
 Port Day 20's `macro_monthly`, now with open-economy columns. **Requirements:**
 - Grain: month from `var('panel_start_date')`.
@@ -745,6 +817,12 @@ Port Day 20's `macro_quarterly` with the same pattern: GDP from `int_gdp__growth
 
 ## 39.5 Levels vs Changes: a Spurious-Correlation Lesson (20 min)
 
+> **Question it answers:** Is the dollar really correlated with oil, or is the correlation of price levels misleading compared with the correlation of changes?
+>
+> **Other questions you can answer the same way:**
+> - Why can two trending series look related when they aren't?
+> - Which correlation should a dashboard show?
+
 The notebook's Module 06 computes a 12-month rolling correlation between USD/CAD **levels** and WTI **levels**. Let's compare that with correlations of **monthly changes**.
 
 Create `analyses/levels_vs_changes.sql`:
@@ -785,6 +863,12 @@ Typically, level correlations are **much larger in absolute value** and swing vi
 ---
 
 ## 39.6 `macro_kpis`: the One-Screen Status Table (20 min)
+
+> **Question it answers:** What are the latest values of the key indicators, their dates, and a simple signal for each?
+>
+> **Other questions you can answer the same way:**
+> - Which indicators are flashing a warning today?
+> - Is inflation inside the target band right now?
 
 The notebook's Module 07 shows a KPI grid with a coloured "signal" per indicator. The dbt version makes each value, its **as-of date**, and the **rule** behind its colour explicit.
 
@@ -885,6 +969,11 @@ dbt build && cd .. && git add . && git commit -m "Day 39: open-economy mart, mon
 
 ## 40.1 Model Contracts (23 min)
 
+> **Question it answers:** How do I guarantee that a mart always has the agreed columns, types and non-null keys?
+>
+> **Other questions you can answer the same way:**
+> - Will a change to the yield-curve model break the dashboards?
+
 Tests check data **after** a model is built. A **model contract** is a promise about a model's **shape** (column names, data types, not-null constraints) that dbt checks **when building**. If the SQL would produce a different shape, the build fails before consumers ever see it. It's Day 25's schema contract idea, applied to your own marts.
 
 Add to `models/marts/rates/_rates__models.yml`:
@@ -936,6 +1025,11 @@ Add a contract to `macro_kpis` yourself (columns `pillar, kpi, kpi_code, value, 
 ---
 
 ## 40.2 Exposures: Putting the Dashboards on the Lineage Graph (18 min)
+
+> **Question it answers:** Which dashboards depend on which marts, and who owns them?
+>
+> **Other questions you can answer the same way:**
+> - If I change macro_monthly, which dashboards are affected?
 
 Your lineage graph ends at the marts. But the **reason** the marts exist is downstream: the notebook dashboards, forecasting and causal work. **Exposures** declare those consumers so they appear on the graph.
 
@@ -997,6 +1091,11 @@ Exposures appear as orange nodes at the right edge of the docs lineage graph.
 
 ### Doc blocks: write a definition once, use it everywhere
 
+> **Question it answers:** How do I define a column like USD/CAD once and reuse that definition in every model?
+>
+> **Other questions you can answer the same way:**
+> - Does "higher" mean a weaker or stronger dollar in this column?
+
 The same column (`usd_cad`, `ca_us_2y_spread_bp`, …) appears in several models. Instead of copying descriptions, define them once in `models/docs.md`:
 
 ```markdown
@@ -1029,6 +1128,11 @@ Reference them in YAML:
 
 ### An overview page
 
+> **Question it answers:** Where should a new user start when exploring the data mart?
+>
+> **Other questions you can answer the same way:**
+> - Which tables answer which questions?
+
 The docs site's home page comes from a special doc block. Add to `models/docs.md`:
 
 ```markdown
@@ -1057,6 +1161,11 @@ dbt docs generate && dbt docs serve --port 8080
 ---
 
 ## 40.4 Exporting Marts for the Notebook (15 min)
+
+> **Question it answers:** How do I automatically save each finished mart as a Parquet file for the dashboards?
+>
+> **Other questions you can answer the same way:**
+> - Where are the files the notebook reads, and when were they last updated?
 
 The dashboard notebook reads Parquet files (Day 20). Let dbt write them **automatically after each mart is built in prod**, using a **post-hook**: SQL that dbt runs right after a model.
 
@@ -1107,6 +1216,11 @@ Make sure nobody else writes to `macro.duckdb` during the cut-over: close all Du
 
 ### Step 1 — Snapshot the current production marts
 
+> **Question it answers:** How do I save the Module 2 marts so I can prove the dbt marts match them?
+>
+> **Other questions you can answer the same way:**
+> - What did the production tables contain before the cut-over?
+
 ```bash
 cd /workspaces/macro-data-course
 mkdir -p data/migration
@@ -1118,6 +1232,11 @@ COPY marts.policy_cycles   TO 'data/migration/m2_policy_cycles.parquet'   (FORMA
 
 ### Step 2 — Check what prod would build, without building it
 
+> **Question it answers:** Which models and schemas will a production build create?
+>
+> **Other questions you can answer the same way:**
+> - Will production use the clean schema names?
+
 ```bash
 cd macro_dbt
 dbt ls --target prod --resource-type model --output json --output-keys "name schema" | head -40
@@ -1127,6 +1246,11 @@ Every model should show a clean schema (`staging`, `intermediate`, `marts`), wit
 
 ### Step 3 — Build prod
 
+> **Question it answers:** How do I build and test every production model in one command?
+>
+> **Other questions you can answer the same way:**
+> - Did all production tests pass?
+
 ```bash
 mkdir -p ../data/marts
 dbt build --target prod
@@ -1135,6 +1259,11 @@ dbt build --target prod
 dbt replaces same-named Module 2 objects (for example `staging.stg_statcan__cpi`, `marts.macro_monthly`) and creates the new ones. The post-hook writes Parquet exports to `data/marts/`.
 
 ### Step 4 — Regression test against the snapshot
+
+> **Question it answers:** Do the dbt production marts give the same values as the Module 2 marts, row by row?
+>
+> **Other questions you can answer the same way:**
+> - Which columns or months differ, if any, and by how much?
 
 Create `analyses/cutover_regression.sql`:
 
@@ -1184,6 +1313,11 @@ cd .. && duckdb macro.duckdb -readonly -c "$(cat macro_dbt/target/compiled/macro
 For any non-zero count, list the actual rows with the same `except` query (without `count(*)`) and explain each difference in `data/migration/NOTES.md`.
 
 ### Step 5 — Remove objects dbt doesn't manage
+
+> **Question it answers:** Which old tables and views in the warehouse are no longer managed by dbt, and can be removed safely?
+>
+> **Other questions you can answer the same way:**
+> - What clutter is left over from earlier modules?
 
 Module 2 left objects that no dbt model replaced (e.g. `staging.stg_macro__observations`, old `intermediate.*` names). An operational macro can compare the database with dbt's **graph** of known nodes. Create `macros/ops/drop_orphaned_relations.sql`:
 
@@ -1249,6 +1383,11 @@ drop schema if exists scratch cascade;       -- Day 14 experiments
 
 ### Move legacy code aside
 
+> **Question it answers:** How do I retire the old loader and SQL files while keeping them for reference?
+>
+> **Other questions you can answer the same way:**
+> - Which code is still in use, and which is retired?
+
 Keep it in the repository for reference, clearly marked as retired:
 
 ```bash
@@ -1261,6 +1400,11 @@ echo "Retired at the Day 40 dbt cut-over. See macro_dbt/ and ingest.py." > legac
 ```
 
 ### The final `pipeline.sh`
+
+> **Question it answers:** How do I run ingestion, transformation, tests, exports and documentation with one command?
+>
+> **Other questions you can answer the same way:**
+> - Is everything up to date for this morning's dashboards?
 
 ```bash
 #!/usr/bin/env bash
@@ -1287,6 +1431,11 @@ ls -lh data/marts/
 ```
 
 ### Point the notebook at the mart
+
+> **Question it answers:** How do I load all the dashboard data from the mart's Parquet files in a few lines?
+>
+> **Other questions you can answer the same way:**
+> - How do I start any new analysis from the tested marts?
 
 In the dashboard notebook, the data-fetching cells (Cells 2–5) are replaced by:
 

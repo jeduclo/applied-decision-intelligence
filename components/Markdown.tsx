@@ -14,6 +14,11 @@ function textOf(node: HastNode | undefined): string {
 
 const components: Components = {
   h2: ({ node, children }) => <h2 id={slugify(textOf(node as HastNode))}>{children}</h2>,
+  // "Question it answers" boxes get their own style
+  blockquote: ({ node, children }) => {
+    const isQuestion = textOf(node as HastNode).trimStart().startsWith("Question it answers");
+    return <blockquote className={isQuestion ? "qbox" : undefined}>{children}</blockquote>;
+  },
   a: ({ href, children }) => {
     const external = href?.startsWith("http");
     return (

@@ -41,6 +41,11 @@ CREATE SCHEMA IF NOT EXISTS scratch;
 
 ### One-time setup: put the BoC decision log in the warehouse
 
+> **Question it answers:** How do I make the Day 11 decision log a permanent part of the warehouse?
+>
+> **Other questions you can answer the same way:**
+> - How do I move a scratch table into the raw layer?
+
 Days 15–17 use the decision log from Day 11. Load it into the `raw` schema:
 
 ```sql
@@ -70,6 +75,12 @@ SELECT COUNT(*) FROM raw.boc_decisions;        -- 25
 ---
 
 ## 14.1 Why CTEs? (20 min)
+
+> **Question it answers:** For each series, what is its latest value next to its average since 2020?
+>
+> **Other questions you can answer the same way:**
+> - How does the latest reading compare with the long-run norm?
+> - Which series are far above their recent average?
 
 Question: *"For each series, show its latest value next to its average since 2020."* With only Day 12 tools, you'd nest subqueries:
 
@@ -127,6 +138,12 @@ Create `day14/cte_basics.sql`.
 
 ### Example 1 — A single CTE
 
+> **Question it answers:** Over the whole sample, what were the first and last dates and the lowest and highest overnight rates?
+>
+> **Other questions you can answer the same way:**
+> - What is the full range of the Fed funds rate?
+> - When does each series start and end?
+
 ```sql
 WITH rates AS (
     SELECT CAST(date AS DATE) AS date, value AS overnight_rate
@@ -141,6 +158,12 @@ FROM rates;
 > **Why `CAST(date AS DATE)`?** Dates coming from pandas are stored as timestamps (date + time). For daily and monthly economic data, a plain `DATE` is simpler to compare and join. We cast once, in the first step, and never think about it again.
 
 ### Example 2 — Chained CTEs (each step uses the previous one)
+
+> **Question it answers:** What was the average and peak overnight rate each year, and which years averaged above 3%?
+>
+> **Other questions you can answer the same way:**
+> - Which years had average inflation above target?
+> - Which years had the highest average unemployment?
 
 ```sql
 WITH rates AS (
@@ -172,6 +195,12 @@ The rules:
 - The final `SELECT` is the query's output.
 
 ### Example 3 — Reusing one CTE twice
+
+> **Question it answers:** How many hikes and how many cuts has the Bank made, side by side?
+>
+> **Other questions you can answer the same way:**
+> - How many months were above versus below target?
+> - How many quarters were expansions versus contractions?
 
 ```sql
 WITH decisions AS (
@@ -231,6 +260,12 @@ This is the most common real-world use of CTEs: a small **pipeline inside one qu
 
 ### Step 1 — Typed daily/monthly observations
 
+> **Question it answers:** For each series, how many observations are there and what dates do they cover?
+>
+> **Other questions you can answer the same way:**
+> - Which series are daily and which are monthly?
+> - Which series has the shortest history?
+
 ```sql
 WITH obs AS (
     SELECT CAST(date AS DATE) AS date, name, value
@@ -243,6 +278,12 @@ ORDER BY name;
 ```
 
 ### Step 2 — Collapse to monthly with the right rule for each series
+
+> **Question it answers:** What is each series' monthly value, using end-of-month for policy rates and monthly averages for prices and yields?
+>
+> **Other questions you can answer the same way:**
+> - What was the average 10-year yield each month?
+> - What was the policy rate at the end of each month?
 
 Day 6 taught that aggregation must make economic sense: `last` for policy rates, `mean` for prices and yields.
 
@@ -278,6 +319,12 @@ LIMIT 10;
 
 ### Step 3 — Label with the dimension table
 
+> **Question it answers:** What is each monthly value, labelled with its source and unit?
+>
+> **Other questions you can answer the same way:**
+> - Which units are the latest values in?
+> - Which source does each series come from?
+
 ```sql
 WITH obs AS (
     SELECT CAST(date AS DATE) AS date, series_id, name, value
@@ -312,6 +359,12 @@ Our data is **long** (one row per month and series). For comparisons across seri
 
 ### Method 1 — Conditional aggregation (portable to any database)
 
+> **Question it answers:** What did all the indicators look like each month, side by side in one row?
+>
+> **Other questions you can answer the same way:**
+> - How did the policy rate, inflation and unemployment move together month by month?
+> - How do I build a wide table for a chart or a regression?
+
 ```sql
 WITH monthly AS (
     SELECT name,
@@ -336,6 +389,12 @@ Each `FILTER` picks the single value for that series in that month. `MAX` is jus
 
 ### Method 2 — DuckDB's `PIVOT` statement
 
+> **Question it answers:** What were the latest six months of every indicator, one column per series?
+>
+> **Other questions you can answer the same way:**
+> - What does each province's CPI look like as columns?
+> - How do I turn a long table into a wide one quickly?
+
 ```sql
 CREATE OR REPLACE TEMP TABLE monthly_long AS
 SELECT name,
@@ -353,6 +412,11 @@ PIVOT monthly_long ON name USING first(value) ORDER BY month DESC LIMIT 6;
 A `TEMP` table disappears when you close the session, which makes it handy for experiments.
 
 ### Method 3 — `UNPIVOT`: wide back to long
+
+> **Question it answers:** How do I turn a wide indicator table back into one row per month and series?
+>
+> **Other questions you can answer the same way:**
+> - How do I prepare wide spreadsheet data for grouping or plotting by series?
 
 ```sql
 CREATE OR REPLACE TEMP TABLE monthly_wide AS
@@ -377,6 +441,12 @@ LIMIT 10;
 ## 14.5 Recursive CTEs and Date Spines (20 min)
 
 ### Recursive CTEs: SQL's `while` loop
+
+> **Question it answers:** At 2% growth a year, how many years does it take for an index to double?
+>
+> **Other questions you can answer the same way:**
+> - How long until debt reaches 100% of GDP at a given deficit?
+> - How many years until prices double at 3% inflation?
 
 A `WITH RECURSIVE` CTE starts with a base row, then repeatedly applies a step to produce new rows until a condition stops it. Remember Day 2's doubling-time loop?
 
@@ -406,6 +476,12 @@ SELECT * FROM path;
 
 ### Date spines: a complete calendar
 
+> **Question it answers:** What is the complete list of months between two dates?
+>
+> **Other questions you can answer the same way:**
+> - How do I build a calendar to join every series to?
+> - Which quarters should a quarterly dataset contain?
+
 Economic time series should have **no missing periods** (Day 5's gap check). A *date spine* is a table containing every expected period. Compare your data against it to find holes:
 
 ```sql
@@ -416,6 +492,12 @@ FROM range(DATE '2024-01-01', DATE '2025-01-01', INTERVAL 1 MONTH) AS t(month);
 `range(start, stop, step)` excludes the stop value; `generate_series` includes it.
 
 ### Finding missing months per series
+
+> **Question it answers:** Which months are missing from each series?
+>
+> **Other questions you can answer the same way:**
+> - Does the CPI download have gaps?
+> - Which provinces are missing a month of labour data?
 
 ```sql
 WITH monthly AS (
@@ -444,6 +526,12 @@ The cross join builds *what should exist*; the anti-join (Day 12) finds *what do
 ---
 
 ## 14.6 Mini-Project: The `scratch.monthly_*` Views (18 min)
+
+> **Question it answers:** How do I get every indicator at a monthly frequency, in both long and wide form, ready for the next three days?
+>
+> **Other questions you can answer the same way:**
+> - What is the monthly value of any series on any date?
+> - What does the full monthly macro panel look like?
 
 Create `day14/monthly_views.sql` that defines two **views** you'll reuse on Days 15–17:
 
@@ -530,6 +618,12 @@ git push
 
 ## 15.1 The Idea (23 min)
 
+> **Question it answers:** How can I compare each month with its year's average without losing the monthly rows?
+>
+> **Other questions you can answer the same way:**
+> - How far was each month from its province's average?
+> - What share of the annual total did each month contribute?
+
 Compare two questions:
 
 1. *"What is the average overnight rate per year?"* → one row **per year** (`GROUP BY`)
@@ -570,6 +664,12 @@ function(...) OVER (
 
 ### Your first window
 
+> **Question it answers:** How far was the overnight rate each month from that year's average?
+>
+> **Other questions you can answer the same way:**
+> - How did each month's inflation compare with the annual mean?
+> - Which months were unusually high within their year?
+
 Create `day15/windows_intro.sql`:
 
 ```sql
@@ -599,6 +699,12 @@ LIMIT 5;
 
 ### Example 1 — z-scores: how unusual is each month?
 
+> **Question it answers:** How unusual was the yield-curve spread in each month, measured in standard deviations?
+>
+> **Other questions you can answer the same way:**
+> - Was this month's inflation reading unusual by historical standards?
+> - Which months were outliers in unemployment?
+
 ```sql
 WITH spread AS (
     SELECT month, spread_10_2_bp
@@ -616,6 +722,12 @@ LIMIT 5;                                 -- the most unusually inverted months
 
 ### Example 2 — Shares of a total
 
+> **Question it answers:** What share of the 2022–23 tightening did each decision contribute?
+>
+> **Other questions you can answer the same way:**
+> - What share of national GDP does each province produce?
+> - What share of the CPI basket is each component?
+
 What share of the 2022–23 tightening did each decision contribute?
 
 ```sql
@@ -628,6 +740,11 @@ ORDER BY decision_date;
 ```
 
 ### Example 3 — Several partitions in one query
+
+> **Question it answers:** For each decision, what was the year's total move, the number of decisions that year, and the all-time net change?
+>
+> **Other questions you can answer the same way:**
+> - How does each province compare with its region and with the country?
 
 ```sql
 SELECT decision_date,
@@ -676,6 +793,12 @@ Create `day15/ranking.sql`.
 
 ### Example 1 — The biggest BoC moves
 
+> **Question it answers:** Which were the largest rate moves, and how do ties get ranked?
+>
+> **Other questions you can answer the same way:**
+> - Which months had the highest inflation ever recorded?
+> - Which provinces rank first to last on unemployment?
+
 ```sql
 SELECT decision_date, change_bp,
        ROW_NUMBER() OVER (ORDER BY ABS(change_bp) DESC) AS row_num,
@@ -689,6 +812,12 @@ ORDER BY rnk;
 Look at how the three columns treat the many 50bp moves differently.
 
 ### Example 2 — The latest observation per series
+
+> **Question it answers:** What is the most recent value of every series?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest CPI in each province?
+> - What is the latest reading of each indicator for a dashboard?
 
 A classic pattern: rank within each group, then keep rank 1.
 
@@ -706,6 +835,12 @@ ORDER BY name;
 
 ### Example 3 — The same thing with `QUALIFY`
 
+> **Question it answers:** What is the most recent value of every series (written more compactly)?
+>
+> **Other questions you can answer the same way:**
+> - What was the first observation of each series?
+> - What was the peak month of each series?
+
 You can't filter on a window function in `WHERE`, because windows are computed *after* `WHERE` (remember the evaluation order from Day 12). Standard SQL therefore needs the CTE above. DuckDB offers `QUALIFY`, a `WHERE` for window results:
 
 ```sql
@@ -719,6 +854,12 @@ Updated evaluation order: `FROM → WHERE → GROUP BY → HAVING → window fun
 
 ### Example 4 — Top-N per group
 
+> **Question it answers:** What were the three highest monthly oil prices in each year since 2020?
+>
+> **Other questions you can answer the same way:**
+> - What were the three worst unemployment months in each province?
+> - Which were the top 5 CPI components by inflation each year?
+
 The three highest monthly WTI prices in each year since 2020:
 
 ```sql
@@ -730,6 +871,12 @@ ORDER BY yr, wti DESC;
 ```
 
 ### Example 5 — Quartiles of the policy-rate history
+
+> **Question it answers:** What rate ranges define the low, middle and high quarters of the policy-rate history?
+>
+> **Other questions you can answer the same way:**
+> - Which provinces are in the top quartile of unemployment?
+> - Is today's inflation in the top quarter of its history?
 
 ```sql
 WITH q AS (
@@ -751,6 +898,12 @@ ORDER BY quartile;
 `LAG(x, n)` gets the value *n* rows **before** the current row; `LEAD(x, n)` gets the value *n* rows **after**. They're SQL's `shift(n)` and `shift(-n)`. Create `day15/lag_lead.sql`.
 
 ### Example 1 — Verifying the decision log
+
+> **Question it answers:** Does the hand-typed change in each decision agree with the change computed from the rates?
+>
+> **Other questions you can answer the same way:**
+> - What was the month-to-month change in unemployment?
+> - Do my published changes match the levels?
 
 The `change_bp` column was typed in by hand. Does it agree with the rates?
 
@@ -780,6 +933,12 @@ The first row has no previous rate, so `LAG` returns `NULL`. `LAG(rate, 1, 0.25)
 
 ### Example 2 — `LEAD`: time until the next decision
 
+> **Question it answers:** How many days passed between each rate decision and the next one?
+>
+> **Other questions you can answer the same way:**
+> - How long did each rate level last?
+> - What happened in the month after each event?
+
 ```sql
 SELECT decision_date,
        LEAD(decision_date) OVER (ORDER BY decision_date)                 AS next_decision,
@@ -789,6 +948,12 @@ ORDER BY decision_date;
 ```
 
 ### Example 3 — Year-over-year inflation with `LAG(…, 12)`
+
+> **Question it answers:** What was year-over-year CPI inflation each month?
+>
+> **Other questions you can answer the same way:**
+> - What is year-over-year growth in employment, wages or house prices?
+> - What is quarter-over-quarter GDP growth?
 
 ```sql
 SELECT month, cpi,
@@ -803,6 +968,12 @@ Compare with the latest value from your Day 5 fact sheet. It should match exactl
 
 ### Example 4 — Many series at once with `PARTITION BY`
 
+> **Question it answers:** In the latest month, which province had the highest year-over-year inflation?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest YoY growth for every CPI component?
+> - Which province has the fastest employment growth?
+
 ```sql
 SELECT geo, month, cpi,
        ROUND(100 * (cpi / LAG(cpi, 12) OVER (PARTITION BY geo ORDER BY month) - 1), 1) AS yoy
@@ -816,6 +987,12 @@ ORDER BY yoy DESC;
 Without `PARTITION BY geo`, `LAG` would compare Ontario with Quebec at the boundaries, the same bug that Day 6's `groupby("component")` avoided.
 
 ### Example 5 — A gap-safe YoY with a self-join
+
+> **Question it answers:** What was YoY inflation each month, computed correctly even if a month is missing?
+>
+> **Other questions you can answer the same way:**
+> - How do I compare each month with exactly the same month a year earlier?
+> - Is my LAG-based result wrong because of gaps?
 
 `LAG(cpi, 12)` means "12 **rows** back", not "12 **months** back". If a month is missing, every later value is wrong (Day 5). A self-join on the calendar is immune to gaps:
 
@@ -860,6 +1037,12 @@ LIMIT 5;
 
 ## 15.5 Indexing to a Base Period: `FIRST_VALUE` (15 min)
 
+> **Question it answers:** Since January 2020, how much have shelter, food and energy prices risen compared with all items (Jan 2020 = 100)?
+>
+> **Other questions you can answer the same way:**
+> - Which province's employment has recovered most since February 2020?
+> - How do series in different units compare on one chart?
+
 The notebook's Module 05 "indicator race" rebases series to **January 2020 = 100** (`index_to_100`). In SQL:
 
 ```sql
@@ -885,6 +1068,12 @@ Because `WHERE` is evaluated **before** window functions, `FIRST_VALUE` sees Jan
 ---
 
 ## 15.6 Mini-Project: Which CPI Components Run Hottest? (18 min)
+
+> **Question it answers:** Which CPI components had the highest inflation, and which have risen most since 2020?
+>
+> **Other questions you can answer the same way:**
+> - Which components are driving today's inflation?
+> - Which components have cooled the fastest?
 
 Using `raw.statcan_cpi` for `geo = 'Canada'` and the eight major components used in the notebook's Module 05 (`Food`, `Shelter`, `Household operations, furnishings and equipment`, `Clothing and footwear`, `Transportation`, `Health and personal care`, `Recreation, education and reading`, `Alcoholic beverages, tobacco products and recreational cannabis`), plus `All-items`:
 
@@ -976,6 +1165,12 @@ git push
 
 ## 16.1 Window Frames (25 min)
 
+> **Question it answers:** How do I tell a calculation to use only the last few months around each row?
+>
+> **Other questions you can answer the same way:**
+> - What is the 3-month average at each point in time?
+> - What is the change over the last 12 months?
+
 With `ORDER BY` inside `OVER`, you can also say **which rows around the current one** the function should see. That set of rows is the **frame**.
 
 ```
@@ -998,6 +1193,11 @@ CURRENT ROW  ────────►  May     2.4    ┘  → a 3-month wind
 
 ### The default frame, and the `LAST_VALUE` trap
 
+> **Question it answers:** Why does `LAST_VALUE` return the current row's value, and how do I get the true last value?
+>
+> **Other questions you can answer the same way:**
+> - What is the final value of the period, shown on every row?
+
 When you write `ORDER BY` inside `OVER` without a frame, the default is *"from the start up to the current row"*. That's why running totals work without extra syntax, but it breaks `LAST_VALUE`:
 
 ```sql
@@ -1015,6 +1215,12 @@ With the default frame, the "last" row of each window is the current row, so `la
 ---
 
 ## 16.2 Moving Averages, Momentum and Rolling Volatility (25 min)
+
+> **Question it answers:** What are the 3-month and 12-month moving averages of YoY inflation?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation trending up or down once monthly noise is smoothed out?
+> - What is the 12-month average unemployment rate?
 
 Create `day16/rolling.sql`. We start from a CPI YoY CTE that we'll reuse all day:
 
@@ -1041,6 +1247,11 @@ pandas equivalent: `yoy.rolling(3).mean()` and `yoy.rolling(12).mean()`.
 
 ### `min_periods`: don't average too few observations
 
+> **Question it answers:** How do I show a 12-month average only once 12 months of data are available?
+>
+> **Other questions you can answer the same way:**
+> - How do I avoid misleading averages at the start of a series?
+
 pandas' `rolling(12)` returns `NaN` until 12 values exist. SQL averages whatever is in the frame, so the first rows are averages of 1, 2, 3… values. Reproduce pandas' behaviour by counting:
 
 ```sql
@@ -1066,6 +1277,12 @@ A `CASE` with no `ELSE` returns `NULL`. The notebook's housing-starts chart used
 
 ### 3-month annualised inflation (momentum)
 
+> **Question it answers:** At the pace of the last three months, what would annual inflation be?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation re-accelerating or easing right now?
+> - What is the annualised quarterly growth of GDP?
+
 ```sql
 SELECT month, cpi,
        ROUND(100 * (POWER(cpi / LAG(cpi, 3) OVER (ORDER BY month), 4) - 1), 1) AS ann_3m
@@ -1078,6 +1295,12 @@ LIMIT 6;
 > As on Day 5: this table is **not seasonally adjusted**, so short-horizon annualised rates carry seasonal noise.
 
 ### Rolling volatility of the yield-curve spread
+
+> **Question it answers:** How volatile has the yield-curve spread been over the past three years?
+>
+> **Other questions you can answer the same way:**
+> - Has the exchange rate become more volatile?
+> - Are oil prices calmer than usual?
 
 ```sql
 SELECT month,
@@ -1096,6 +1319,12 @@ LIMIT 6;
 
 ### Example 1 — Cumulative policy moves
 
+> **Question it answers:** How many basis points of tightening or easing had accumulated by each decision?
+>
+> **Other questions you can answer the same way:**
+> - What is cumulative employment growth since a start date?
+> - What is the total deficit accumulated so far?
+
 ```sql
 SELECT decision_date, change_bp,
        SUM(change_bp) OVER (ORDER BY decision_date) AS cumulative_bp
@@ -1107,6 +1336,12 @@ pandas: `.cumsum()`. The default frame (start → current row) makes this a runn
 
 ### Example 2 — Resetting the running total each year
 
+> **Question it answers:** What was the year-to-date change in the policy rate at each decision?
+>
+> **Other questions you can answer the same way:**
+> - What is year-to-date job creation?
+> - What is year-to-date federal spending?
+
 ```sql
 SELECT decision_date, change_bp,
        SUM(change_bp) OVER (PARTITION BY year(decision_date)
@@ -1116,6 +1351,12 @@ ORDER BY decision_date;
 ```
 
 ### Example 3 — The running peak
+
+> **Question it answers:** What was the highest policy rate reached so far at each month?
+>
+> **Other questions you can answer the same way:**
+> - What is the record high of inflation up to each date?
+> - Has unemployment hit a new high?
 
 Day 2's accumulator loop and Day 5's `expanding().max()`:
 
@@ -1130,6 +1371,12 @@ ORDER BY month;
 ```
 
 ### Example 4 — Drawdown: distance from the recent high
+
+> **Question it answers:** How far had the Canadian dollar fallen from its best level of the previous 12 months?
+>
+> **Other questions you can answer the same way:**
+> - How far is the stock index below its peak?
+> - How far are house prices below their recent high?
 
 How far has the Canadian dollar fallen from its best level of the previous 12 months?
 
@@ -1173,6 +1420,12 @@ LIMIT 1;
 
 ## 16.4 Date-Based Frames with `RANGE` (13 min)
 
+> **Question it answers:** What is the 12-month average oil price, using real calendar months even if some months are missing?
+>
+> **Other questions you can answer the same way:**
+> - What is the average over the last 90 days of a daily series?
+> - How many observations fell into each window?
+
 `ROWS` counts **rows**. If a month is missing, "11 preceding rows" silently covers 13 months. `RANGE` with an interval counts in **time** instead, so it's robust to gaps (the frame-level version of Day 15's self-join):
 
 ```sql
@@ -1210,6 +1463,12 @@ After the gap, the `ROWS` frame reaches back further in time; the `RANGE` frame 
 
 ## 16.5 Named Windows (8 min)
 
+> **Question it answers:** What were the 12-month average, minimum and maximum Fed funds rate each month?
+>
+> **Other questions you can answer the same way:**
+> - What is the 12-month range of the exchange rate?
+> - How do I compute several rolling statistics without repeating myself?
+
 When several functions share a window definition, name it once with `WINDOW`:
 
 ```sql
@@ -1230,6 +1489,12 @@ This is the SQL equivalent of assigning a repeated expression to a variable: les
 ---
 
 ## 16.6 Episodes: The Gaps-and-Islands Technique (23 min)
+
+> **Question it answers:** How long did inflation stay above 3%, and when did each such episode start and end?
+>
+> **Other questions you can answer the same way:**
+> - How long did each recession last?
+> - How many consecutive months was unemployment rising?
 
 Economists constantly ask about **episodes**: *How long did inflation stay above 3%? When did each yield-curve inversion start and end?* These are consecutive runs ("islands") of rows sharing a condition. The technique takes three steps.
 
@@ -1289,6 +1554,12 @@ For the first row, `LAG` returns `NULL`, the comparison is not true, and the `CA
 ---
 
 ## 16.7 Mini-Project: Yield-Curve Inversion Episodes (20 min)
+
+> **Question it answers:** When was the yield curve inverted, for how long, and what happened to rates and unemployment during each episode?
+>
+> **Other questions you can answer the same way:**
+> - Did unemployment rise after past inversions?
+> - How deep was the worst inversion?
 
 An inverted curve (10-year yield below 2-year) is a well-known recession signal, and the notebook plots the spread in Module 02. Using `scratch.monthly_wide`:
 
@@ -1376,6 +1647,12 @@ git push
 
 ## 17.1 `ASOF` Joins (25 min)
 
+> **Question it answers:** What was the most recent market yield on or before each policy decision?
+>
+> **Other questions you can answer the same way:**
+> - What was the latest CPI known on a given date?
+> - Which exchange rate applied to each transaction date?
+
 Economic data rarely lines up perfectly. A policy decision on 2024-06-05 needs *the most recent* 2-year yield **on or before** that date. There may be no yield observation on the exact day (weekends, holidays). An **ASOF join** matches each row to the latest row that doesn't come after it.
 
 ```
@@ -1387,6 +1664,12 @@ decisions                    yields (daily)                    ASOF result
 Create `day17/asof.sql`:
 
 ### Example 1 — Market yields at each decision
+
+> **Question it answers:** What was the 2-year bond yield at each Bank of Canada decision?
+>
+> **Other questions you can answer the same way:**
+> - What was the oil price on each announcement day?
+> - What was the exchange rate on each trade date?
 
 ```sql
 WITH yields AS (
@@ -1405,6 +1688,12 @@ ORDER BY d.decision_date;
 The inequality in `ON` says "the yield date must not be after the decision date"; `ASOF` then picks the **closest** such row.
 
 ### Example 2 — How did markets move around decisions?
+
+> **Question it answers:** How much did the 2-year yield move from the day before a decision to a week later?
+>
+> **Other questions you can answer the same way:**
+> - Did markets react more to surprises than to expected moves?
+> - How did the dollar move after each announcement?
 
 Compare the 2-year yield the day before a decision with the yield a week later:
 
@@ -1436,6 +1725,12 @@ ORDER BY decision_date;
 
 ### Example 3 — The CPI reading known at each decision (with a publication lag)
 
+> **Question it answers:** Which inflation reading did the Bank actually have in hand at each decision?
+>
+> **Other questions you can answer the same way:**
+> - What did policymakers know on the decision date (real-time data)?
+> - Was each decision made with inflation above or below target?
+
 CPI for month *m* is published during month *m+1*. A rough "what was known" rule is to use the CPI of two months before the decision month:
 
 ```sql
@@ -1464,6 +1759,12 @@ Thinking about *what was known when* (data **vintages** and publication lags) is
 You've typed `100 * (x / LAG(x, 12) OVER (...) - 1)` many times. DuckDB **macros** are SQL's version of Day 3 functions.
 
 ### Scalar macros
+
+> **Question it answers:** How do I write the percent-change or policy-stance formula once and reuse it everywhere?
+>
+> **Other questions you can answer the same way:**
+> - How do I annualise any growth rate consistently?
+> - How do I classify any rate with the same rule?
 
 ```sql
 CREATE OR REPLACE MACRO pct_change(new_value, old_value) AS
@@ -1495,6 +1796,11 @@ LIMIT 3;
 
 ### Table macros: parameterised queries
 
+> **Question it answers:** What is the monthly history of any series I name?
+>
+> **Other questions you can answer the same way:**
+> - What are the last three months of oil, rates or the dollar, with one short call?
+
 ```sql
 CREATE OR REPLACE MACRO series(series_name) AS TABLE
     SELECT month, value
@@ -1510,6 +1816,12 @@ SELECT * FROM series('wti')       ORDER BY month DESC LIMIT 3;
 ---
 
 ## 17.3 "Friendly SQL" in DuckDB (20 min)
+
+> **Question it answers:** How can I look at a table quickly and drop, change or group columns with less typing?
+>
+> **Other questions you can answer the same way:**
+> - What does a table look like without its technical columns?
+> - How do I group by every non-aggregated column?
 
 DuckDB adds conveniences to standard SQL. They save a lot of typing, but they may not exist in other databases, so know which parts of your SQL are portable.
 
@@ -1559,6 +1871,12 @@ DuckDB is fast, but some habits matter as data grows.
 
 ### See what DuckDB actually did
 
+> **Question it answers:** Where did the time go in this query, and how many rows did each step handle?
+>
+> **Other questions you can answer the same way:**
+> - Why is my query slow?
+> - Is my filter applied early?
+
 ```sql
 EXPLAIN ANALYZE
 SELECT geo, AVG(cpi)
@@ -1578,6 +1896,11 @@ The output shows each operator, how many rows flowed through it and how long it 
 5. **Beware fan-out joins** (Day 12): a row explosion is the most common cause of slow queries.
 
 ## 17.5 A Short SQL Style Guide (8 min)
+
+> **Question it answers:** How do I write a query that a colleague can read, check and maintain?
+>
+> **Other questions you can answer the same way:**
+> - What does this query produce, and at what grain?
 
 Readable SQL is maintainable SQL. Adopt these conventions for the rest of the course:
 
@@ -1629,6 +1952,12 @@ Build your first **mart**: a clean, analysis-ready table that answers a real que
 This is gaps-and-islands (Day 16) on the sequence of moves.
 
 ### Requirements
+
+> **Question it answers:** For each Bank of Canada tightening or easing cycle: when did it start and end, how many moves and basis points were involved, and what were inflation and yields at the start and end?
+>
+> **Other questions you can answer the same way:**
+> - Was the latest easing cycle faster than the previous one?
+> - How high was inflation when each cycle began?
 
 Create `sql/04_policy_cycles.sql` that:
 
@@ -1759,6 +2088,11 @@ Notes:
 ---
 
 ## 17.7 Wiring It into the Warehouse Build (10 min)
+
+> **Question it answers:** How do I make the policy-cycles table rebuild automatically with the rest of the warehouse?
+>
+> **Other questions you can answer the same way:**
+> - Will a colleague get the same tables when they run the build?
 
 Make the decision log and the mart part of the reproducible pipeline.
 

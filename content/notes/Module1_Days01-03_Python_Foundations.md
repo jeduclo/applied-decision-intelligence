@@ -113,6 +113,13 @@ A **variable** is a labelled box holding a value. Economists already think this 
 
 ### Example 1 — The real interest rate (approximation)
 
+> **Question it answers:** With the policy rate at 2.25% and inflation at 3.0%, what is the real interest rate?
+>
+> **Other questions you can answer the same way:**
+> - Is today's real rate positive or negative?
+> - What real return does a 4% GIC give after inflation?
+> - How much did real wages grow if pay rose 3.5% and prices 3%?
+
 Create `day01/rates.py`:
 
 ```python
@@ -132,6 +139,12 @@ Output: `-0.75`. A negative real rate means policy is stimulative in real terms.
 
 ### Example 2 — The exact Fisher equation
 
+> **Question it answers:** What is the exact real interest rate, and how different is it from the quick approximation?
+>
+> **Other questions you can answer the same way:**
+> - When does the approximation r ≈ i − π become misleading (e.g. at high inflation)?
+> - What is the exact real yield on a bond?
+
 The approximation `r ≈ i − π` works for small rates. The exact relation is `(1 + r) = (1 + i) / (1 + π)`. Python uses `**` for powers and parentheses as in algebra. Add to `rates.py`:
 
 ```python
@@ -149,6 +162,12 @@ Output: about `-0.728`. The two measures differ slightly — worth remembering w
 
 ### Example 3 — Compound growth
 
+> **Question it answers:** If nominal GDP of about $3,180B grows 1.5% a year, how big will it be in five years?
+>
+> **Other questions you can answer the same way:**
+> - What will a $500,000 home be worth after 10 years at 4% a year?
+> - How large will federal debt be if it grows 5% a year?
+
 Federal GDP in the notebook's fiscal table for 2026 is about $3,180B. What if nominal GDP grows 1.5% a year for 5 years?
 
 ```python
@@ -165,6 +184,12 @@ print(gdp_future)
 Output: about `3425.8`.
 
 ### Example 4 — Annualising quarterly growth
+
+> **Question it answers:** If GDP grew 0.8% this quarter, what is that as an annual rate (simple and compound)?
+>
+> **Other questions you can answer the same way:**
+> - What annual rate does a 0.3% monthly CPI increase imply?
+> - Why do the headline and the release numbers differ?
 
 Statistics Canada reports quarterly GDP growth, but headlines quote *annualised* rates. The notebook uses the shortcut `qoq × 4`. The compounded version is `(1 + qoq)^4 − 1`.
 
@@ -233,6 +258,11 @@ Every value has a **type**. The four you need today:
 
 ### Example 1 — Checking types
 
+> **Question it answers:** Is this value a whole number, a decimal, text or True/False?
+>
+> **Other questions you can answer the same way:**
+> - Did the API give me a number or text?
+
 ```python
 print(type(2026))       # <class 'int'>
 print(type(2.25))       # <class 'float'>
@@ -242,6 +272,11 @@ print(type(True))       # <class 'bool'>
 
 ### Example 2 — Floating-point surprises
 
+> **Question it answers:** Why does 0.1 + 0.2 not print exactly 0.3, and how do I display it cleanly?
+>
+> **Other questions you can answer the same way:**
+> - Why does a total in my table show 0.30000000000000004?
+
 ```python
 print(0.1 + 0.2)              # 0.30000000000000004
 print(round(0.1 + 0.2, 2))    # 0.3
@@ -250,6 +285,12 @@ print(round(0.1 + 0.2, 2))    # 0.3
 Computers store decimals in binary, so tiny errors appear. This is harmless for economics, but **round when displaying** and never test decimals with exact equality.
 
 ### Example 3 — Converting types (very important for APIs)
+
+> **Question it answers:** How do I turn the text "2.25" returned by the Bank of Canada API into a number I can calculate with?
+>
+> **Other questions you can answer the same way:**
+> - How do I turn the year "2026" into a number?
+> - Why does adding "2.25" + "1" give "2.251"?
 
 The Bank of Canada API returns numbers as **text**. Look at this line in the notebook's `boc_fetch`: `float(v)`. That's a type conversion.
 
@@ -277,6 +318,11 @@ print("Rate: " + label + "%")     # Rate: 2.25%
 
 ### Example 1 — Basic f-string
 
+> **Question it answers:** How do I print a sentence that includes the latest unemployment rate?
+>
+> **Other questions you can answer the same way:**
+> - How do I write "Inflation in Ontario is 2.8%" from variables?
+
 ```python
 country = "Canada"
 unemployment = 6.4
@@ -284,6 +330,12 @@ print(f"The unemployment rate in {country} is {unemployment}%.")
 ```
 
 ### Example 2 — Formatting numbers
+
+> **Question it answers:** How do I show a rate with two decimals, a sign, a thousands separator, basis points or a percentage?
+>
+> **Other questions you can answer the same way:**
+> - How do I display housing starts as 66,788?
+> - How do I show 0.0324 as 3.2%?
 
 ```python
 real_rate = -0.7281553398
@@ -298,6 +350,12 @@ print(f"Growth: {0.0324:.1%}")                 # as percentage → 3.2%
 ```
 
 ### Example 3 — Useful string methods
+
+> **Question it answers:** How do I clean messy series names and extract the year from a date string?
+>
+> **Other questions you can answer the same way:**
+> - Why does "V39079" not match "v39079"?
+> - How do I get "2026" out of "2026-08-01"?
 
 ```python
 series_name = "  Unemployment Rate  "
@@ -317,6 +375,12 @@ A **list** is an ordered collection — a natural container for a time series.
 
 ### Example 1 — Creating and inspecting a list
 
+> **Question it answers:** How many months of CPI do I have, and what are the first and last values?
+>
+> **Other questions you can answer the same way:**
+> - What was the latest policy rate in my list?
+> - How many observations does a series contain?
+
 ```python
 # Illustrative monthly CPI index levels, Jan–Dec
 cpi = [161.3, 161.8, 162.4, 162.6, 163.0, 163.4,
@@ -332,6 +396,12 @@ print("Last value:", cpi[-1])     # negative index counts from the end
 
 ### Example 2 — Slicing (sub-periods)
 
+> **Question it answers:** What were CPI levels in Q1, in the second half of the year, and in the last three months?
+>
+> **Other questions you can answer the same way:**
+> - What happened in the last 12 months only?
+> - What were the values in a given sub-period?
+
 ```python
 q1 = cpi[0:3]        # items 0, 1, 2 (stop index is excluded)
 h2 = cpi[6:]         # from July to the end
@@ -344,6 +414,12 @@ print("Last 3 months:", last_3)
 
 ### Example 3 — Summary statistics with built-ins
 
+> **Question it answers:** What were the average, lowest and highest CPI levels, and how much did prices rise from January to December?
+>
+> **Other questions you can answer the same way:**
+> - What was the average policy rate this year?
+> - What was the range of the exchange rate?
+
 ```python
 average = sum(cpi) / len(cpi)
 print(f"Average CPI level: {average:.2f}")
@@ -355,6 +431,11 @@ print(f"Jan→Dec change: {change:.2f}%")
 ```
 
 ### Example 4 — Modifying lists
+
+> **Question it answers:** How do I add next month's value when new data is released?
+>
+> **Other questions you can answer the same way:**
+> - How do I extend a list of dates with a new month?
 
 ```python
 cpi.append(164.9)            # add next January's value
@@ -394,6 +475,11 @@ A **dictionary** maps *keys* to *values*. Think of it as a labelled row: indicat
 
 ### Example 1 — Building a snapshot
 
+> **Question it answers:** How do I store today's key indicators together and look one up by name?
+>
+> **Other questions you can answer the same way:**
+> - What is the latest unemployment rate in my snapshot?
+
 ```python
 snapshot = {
     "overnight_rate": 2.25,
@@ -407,6 +493,12 @@ print(snapshot["unemployment"])     # look up by key → 6.4
 
 ### Example 2 — Adding and updating
 
+> **Question it answers:** How do I add a derived indicator (the real rate) and replace a revised value?
+>
+> **Other questions you can answer the same way:**
+> - How do I update a figure after StatCan revises it?
+> - Which indicators does my snapshot contain?
+
 ```python
 snapshot["real_rate"] = snapshot["overnight_rate"] - snapshot["cpi_yoy"]
 snapshot["unemployment"] = 6.5      # a revised value replaces the old one
@@ -416,6 +508,11 @@ print(list(snapshot.keys()))
 ```
 
 ### Example 3 — Series codes (a pattern you'll see all course)
+
+> **Question it answers:** Which economic series does the code V39079 stand for, and is a given code in my catalogue?
+>
+> **Other questions you can answer the same way:**
+> - What is the readable name of each Bank of Canada series code?
 
 ```python
 BOC_SERIES = {
@@ -434,6 +531,13 @@ print("V122538" in BOC_SERIES)      # False — check before looking up
 ---
 
 ## 1.7 Day 1 Mini-Project: Macro Snapshot Printer (23 min)
+
+> **Question it answers:** What do the latest Canadian macro indicators look like on one tidy screen, including the real rate and the yield spread?
+>
+> **Other questions you can answer the same way:**
+> - Is the real rate negative today?
+> - Is the yield curve inverted?
+> - How do today's indicators compare at a glance?
 
 **Task:** Create `day01/snapshot.py` that stores the latest indicators in a dictionary, derives the real rate and 10yr−2yr spread, and prints a neatly formatted briefing.
 
@@ -560,6 +664,12 @@ Comparisons produce `True` or `False`.
 
 ### Example 1 — Simple checks
 
+> **Question it answers:** Is inflation above the 2% target?
+>
+> **Other questions you can answer the same way:**
+> - Is unemployment higher than last month?
+> - Is the exchange rate exactly at a given level?
+
 ```python
 cpi_yoy = 3.0
 target = 2.0
@@ -569,6 +679,12 @@ print(cpi_yoy == target)      # False
 ```
 
 ### Example 2 — Combining conditions with `and`, `or`, `not`
+
+> **Question it answers:** Is inflation inside the Bank of Canada's 1–3% control range? Is the yield curve inverted?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation above target AND unemployment below 6%?
+> - Is either rate outside its normal range?
 
 The Bank of Canada aims for 2% inflation within a 1–3% control range.
 
@@ -596,6 +712,11 @@ Python uses **indentation** (4 spaces) to show which lines belong to a condition
 
 ### Example 1 — A single `if`
 
+> **Question it answers:** Is the yield curve inverted, and should I print a warning?
+>
+> **Other questions you can answer the same way:**
+> - Should I flag a month where inflation exceeds 3%?
+
 Create `day02/stance.py`:
 
 ```python
@@ -609,6 +730,12 @@ print("Check complete.")   # not indented → always runs
 
 ### Example 2 — `if / else`
 
+> **Question it answers:** Is monetary policy stimulative or restrictive in real terms?
+>
+> **Other questions you can answer the same way:**
+> - Is the economy growing or shrinking this quarter?
+> - Is the budget in surplus or in deficit?
+
 ```python
 real_rate = -0.75
 
@@ -619,6 +746,12 @@ else:
 ```
 
 ### Example 3 — `if / elif / else`: classifying the policy stance
+
+> **Question it answers:** Is the overnight rate below, inside or above the neutral band of 2.25–2.75%?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation below, inside or above the control range?
+> - Is unemployment low, normal or high?
 
 The notebook shades a "neutral band" of 2.25–2.75% for the overnight rate.
 
@@ -638,6 +771,12 @@ print(f"Overnight rate {overnight_rate:.2f}% → {stance}")
 > Python checks conditions **top to bottom** and stops at the first `True`. The order of your `elif`s matters.
 
 ### Example 4 — Nested conditions: an inflation briefing
+
+> **Question it answers:** Where is inflation relative to the control range, and is core inflation telling a different story?
+>
+> **Other questions you can answer the same way:**
+> - Is inflation high and rising, or high but falling?
+> - Which message should today's briefing lead with?
 
 ```python
 cpi_yoy = 3.0
@@ -690,6 +829,11 @@ Create `day02/loops.py`.
 
 ### Example 1 — Looping over values
 
+> **Question it answers:** What were the policy rates at each 2024 decision, printed one per line?
+>
+> **Other questions you can answer the same way:**
+> - How do I print every value in a series?
+
 ```python
 rates_2024 = [4.75, 4.50, 4.25, 3.75, 3.25]
 
@@ -699,12 +843,22 @@ for rate in rates_2024:
 
 ### Example 2 — Looping with positions: `enumerate`
 
+> **Question it answers:** What was the rate at the 1st, 2nd, 3rd… decision of the year?
+>
+> **Other questions you can answer the same way:**
+> - What is the position of each observation in a series?
+
 ```python
 for position, rate in enumerate(rates_2024):
     print(f"Decision {position + 1}: {rate:.2f}%")
 ```
 
 ### Example 3 — Pairing dates and values: `zip`
+
+> **Question it answers:** What rate did the Bank set on each 2024 decision date?
+>
+> **Other questions you can answer the same way:**
+> - How do I print each month next to its CPI value?
 
 ```python
 dates = ["2024-06-05", "2024-07-24", "2024-09-04", "2024-10-23", "2024-12-11"]
@@ -714,6 +868,12 @@ for date, rate in zip(dates, rates_2024):
 ```
 
 ### Example 4 — Period-over-period changes with `range`
+
+> **Question it answers:** What was month-over-month CPI inflation for each month?
+>
+> **Other questions you can answer the same way:**
+> - How much did GDP grow each quarter?
+> - How did unemployment change month to month?
 
 To compare each value with the previous one we need positions. `range(1, n)` produces 1, 2, …, n−1.
 
@@ -730,6 +890,11 @@ for i in range(1, len(cpi)):
 > This is exactly what pandas' `pct_change()` does in the notebook. On Days 4–7 you'll replace this loop with one line — but now you know what it's doing.
 
 ### Example 5 — Building a new list inside a loop
+
+> **Question it answers:** By how many basis points did the rate change at each decision?
+>
+> **Other questions you can answer the same way:**
+> - How do I build a list of monthly changes to analyse later?
 
 ```python
 changes_bp = []                       # start with an empty list
@@ -749,6 +914,12 @@ Many statistics follow one pattern: *start with a value, update it inside the lo
 
 ### Example 1 — Counting months above target
 
+> **Question it answers:** In how many months was inflation above the 2% target?
+>
+> **Other questions you can answer the same way:**
+> - How many quarters had negative growth?
+> - How many decisions were cuts?
+
 ```python
 cpi_yoy_series = [2.9, 2.6, 2.4, 2.1, 1.9, 2.0, 2.3, 2.5, 3.1, 3.0]
 
@@ -761,6 +932,12 @@ print(f"{months_above} of {len(cpi_yoy_series)} months above target")
 ```
 
 ### Example 2 — Tracking the peak (running maximum)
+
+> **Question it answers:** What was the peak policy rate in the cycle?
+>
+> **Other questions you can answer the same way:**
+> - What was the highest unemployment rate since 2020?
+> - When did inflation peak?
 
 ```python
 decisions = [0.50, 1.00, 1.50, 2.50, 3.25, 3.75, 4.25, 4.75, 5.00, 4.75]
@@ -775,6 +952,12 @@ print(f"Peak policy rate: {peak:.2f}%")    # same answer as max(decisions)
 
 ### Example 3 — Cumulative change
 
+> **Question it answers:** How many basis points of tightening had accumulated after each 2022 hike?
+>
+> **Other questions you can answer the same way:**
+> - How many jobs were added in total over the year?
+> - How much did prices rise cumulatively?
+
 ```python
 changes_bp = [25, 50, 50, 100, 75, 50, 50]   # 2022 hikes
 
@@ -787,6 +970,11 @@ for change in changes_bp:
 ---
 
 ## 2.5 Looping Over Dictionaries (8 min)
+
+> **Question it answers:** How do I print every indicator in my snapshot with its value, neatly aligned?
+>
+> **Other questions you can answer the same way:**
+> - How do I produce a small table of all indicators?
 
 Use `.items()` to get key and value together.
 
@@ -802,6 +990,12 @@ for indicator, value in snapshot.items():
 ```
 
 ### Example — Tariff exposure (from the notebook's `TARIFF_STATUS`)
+
+> **Question it answers:** Which sectors face tariffs, and what is the total and average tariff rate across them?
+>
+> **Other questions you can answer the same way:**
+> - Which sectors face tariffs above 10%?
+> - Which province is most exposed to a given shock?
 
 ```python
 tariff_exposure = {
@@ -831,6 +1025,12 @@ A `while` loop repeats *as long as a condition is true*. Use it when you don't k
 
 ### Example 1 — How many years for GDP to double?
 
+> **Question it answers:** At 2% growth a year, how many years does it take for output to double?
+>
+> **Other questions you can answer the same way:**
+> - How long until prices double at 3% inflation?
+> - How long until debt reaches a target level?
+
 ```python
 growth = 0.02
 level = 100.0
@@ -847,6 +1047,12 @@ print(f"Rule of 70 estimate: {70 / (growth * 100):.0f} years")
 Output: the loop gives 36 years; the rule of 70 gives 35. (After 35 years the level is 199.99 — just short!)
 
 ### Example 2 — How many 25bp cuts to reach neutral?
+
+> **Question it answers:** Starting at 5%, how many 25-basis-point cuts does it take to reach the 2.75% neutral rate?
+>
+> **Other questions you can answer the same way:**
+> - How many hikes would take the rate back to 4%?
+> - How many months until inflation returns to target at a given pace?
 
 ```python
 rate = 5.00
@@ -892,6 +1098,11 @@ You might expect 5 months but get 6 — floating-point strikes again (`3.0 - 5×
 
 ### Example — Skipping missing values (just like the notebook)
 
+> **Question it answers:** How do I keep only the valid numbers, skipping "Bank holiday", "NA" and blanks?
+>
+> **Other questions you can answer the same way:**
+> - How many usable observations does a raw download contain?
+
 The notebook's `boc_fetch` skips values like `""`, `"NA"`, and `"Bank holiday"`. Here's the same logic in plain Python:
 
 ```python
@@ -908,6 +1119,12 @@ print(clean)                         # [2.25, 2.25, 2.25, 2.25]
 
 ### Example — Finding the first inversion
 
+> **Question it answers:** In which month did the yield curve first invert?
+>
+> **Other questions you can answer the same way:**
+> - When did inflation first exceed 3%?
+> - When did unemployment first rise above 7%?
+
 ```python
 spreads_bp = [85, 60, 32, 10, -5, -40, -90]
 months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul"]
@@ -921,6 +1138,12 @@ for month, spread in zip(months, spreads_bp):
 ---
 
 ## 2.8 List Comprehensions — a Gentle Introduction (5 min)
+
+> **Question it answers:** How do I convert a whole list of rates to basis points, or keep only those that pass a test, in one line?
+>
+> **Other questions you can answer the same way:**
+> - Which months had inflation above target (as a list)?
+> - How do I convert every value in a list to another unit?
 
 A compact way to build a list from a loop. These two blocks are identical:
 
@@ -951,6 +1174,12 @@ print(above_target)
 
 ## 2.9 Handling Errors with `try / except` (10 min)
 
+> **Question it answers:** How do I convert messy text values to numbers and report the ones that fail, without the program crashing?
+>
+> **Other questions you can answer the same way:**
+> - Which values in a download could not be read?
+> - How do I keep a script running when one value is bad?
+
 Real data is messy. Rather than listing every bad value, we can *try* the conversion and handle failure.
 
 ```python
@@ -973,6 +1202,12 @@ print(clean)     # [2.25, 2.5, 2.75]
 ---
 
 ## 2.10 Day 2 Mini-Project: Cleaning Raw BoC Observations (20 min)
+
+> **Question it answers:** From a raw Bank of Canada response, what are the valid dates and rates, how many were skipped, and what is the latest rate?
+>
+> **Other questions you can answer the same way:**
+> - How many bank holidays or blanks were in the download?
+> - What was the average rate over the valid days?
 
 The Bank of Canada Valet API returns a list of dictionaries shaped like this. (We'll fetch the real thing on Day 3.)
 
@@ -1087,6 +1322,11 @@ A **function** is a named, reusable piece of logic — like `f(x)` in economics.
 
 ### Example 1 — Your first function
 
+> **Question it answers:** What is the real rate for any pair of nominal rate and inflation, without rewriting the formula each time?
+>
+> **Other questions you can answer the same way:**
+> - What is the real rate in each year of a list?
+
 ```python
 def real_rate(nominal, inflation):
     return nominal - inflation
@@ -1098,6 +1338,11 @@ print(real_rate(5.00, 3.8))     # 1.2
 Anatomy: `def` + name + `(parameters)` + colon; indented body; `return` sends the result back.
 
 ### Example 2 — Replacing repeated code
+
+> **Question it answers:** What is the policy stance for any rate I give it, using one shared rule?
+>
+> **Other questions you can answer the same way:**
+> - How do I classify every rate in a list with the same logic?
 
 ```python
 def classify_stance(rate):
@@ -1118,6 +1363,11 @@ for r in [0.25, 2.50, 5.00]:
 
 ### Example 1 — Default values
 
+> **Question it answers:** What is the real rate using the quick approximation by default, or the exact Fisher formula when I ask for it?
+>
+> **Other questions you can answer the same way:**
+> - How do I give a function a sensible default while keeping options open?
+
 Parameters can have defaults, used when the caller doesn't supply a value.
 
 ```python
@@ -1132,6 +1382,11 @@ print(real_rate(2.25, 3.0, method="exact"))  # -0.728...
 
 ### Example 2 — Keyword arguments make calls readable
 
+> **Question it answers:** What is the annualised rate of quarterly or monthly growth, compounded or simple?
+>
+> **Other questions you can answer the same way:**
+> - What annual rate does 0.25% monthly growth imply?
+
 ```python
 def annualise(growth, periods_per_year=4, compound=True):
     if compound:
@@ -1144,6 +1399,11 @@ print(annualise(0.25, periods_per_year=12))   # monthly growth
 ```
 
 ### Example 3 — Making the neutral band adjustable
+
+> **Question it answers:** How would the stance classification change if the neutral band were 2.75–3.25% instead?
+>
+> **Other questions you can answer the same way:**
+> - How sensitive is my classification to the threshold I choose?
 
 ```python
 def classify_stance(rate, neutral_low=2.25, neutral_high=2.75):
@@ -1162,6 +1422,11 @@ Now if the Bank of Canada revises its neutral-rate estimate, you change one argu
 ---
 
 ## 3.3 Docstrings and Type Hints (13 min)
+
+> **Question it answers:** How do I document what a function needs and returns so a colleague can use it correctly?
+>
+> **Other questions you can answer the same way:**
+> - What does pct_change expect as inputs, and what does it return?
 
 Professional code explains itself. A **docstring** (triple-quoted text right after `def`) describes the function; **type hints** state expected input and output types.
 
@@ -1217,6 +1482,11 @@ print(f"{spread_bp(3.75, 2.27):.0f} bp")    # 148 bp
 
 ### Pitfall — `print` is not `return`
 
+> **Question it answers:** Why is my function's result "None" when I try to use it in a calculation?
+>
+> **Other questions you can answer the same way:**
+> - Why can't I add the output of my function to another number?
+
 ```python
 def bad_real_rate(nominal, inflation):
     print(nominal - inflation)          # displays, but returns nothing
@@ -1228,6 +1498,11 @@ print(result)                            # None!  Can't use it in further math
 > **Rule:** functions should `return` values. Let the *caller* decide whether to print.
 
 ### Returning several values
+
+> **Question it answers:** What are the minimum, maximum and mean of a series, from a single function call?
+>
+> **Other questions you can answer the same way:**
+> - What is the range and average of inflation over the last five months?
 
 ```python
 def summarise(values):
@@ -1262,6 +1537,11 @@ Let's wrap Day 2's loops in functions.
 
 ### Example 1 — Year-over-year changes
 
+> **Question it answers:** What was year-over-year inflation for each month, from a list of CPI levels?
+>
+> **Other questions you can answer the same way:**
+> - What is year-over-year growth in employment or wages?
+
 ```python
 def yoy_changes(levels, lag=12):
     """Percentage change versus `lag` periods earlier.
@@ -1286,6 +1566,11 @@ print(yoy_changes(cpi, lag=1))     # month-over-month instead
 Notice `yoy_changes` *calls* `pct_change` — small functions combine into bigger ones.
 
 ### Example 2 — A moving average
+
+> **Question it answers:** What is the 3-month moving average of housing starts?
+>
+> **Other questions you can answer the same way:**
+> - What is the underlying trend once monthly noise is removed?
 
 ```python
 def moving_average(values, window=3):
@@ -1326,6 +1611,11 @@ print(temp)           # NameError: name 'temp' is not defined
 A **module** is simply a `.py` file whose functions you can `import` into other files. This is how the course notebook's code will eventually become a real project.
 
 ### Step 1 — Create `day03/macrotools.py`
+
+> **Question it answers:** How do I collect my economic helper functions in one file I can reuse in every script?
+>
+> **Other questions you can answer the same way:**
+> - Where should the real-rate, stance and spread calculations live?
 
 ```python
 """macrotools — small, reusable macroeconomic helper functions."""
@@ -1423,6 +1713,11 @@ python day03/macrotools.py
 > - `if __name__ == "__main__":` means "run this block only when the file is executed directly, not when imported."
 
 ### Step 2 — Use it from another file: `day03/analysis.py`
+
+> **Question it answers:** What are today's real rate, policy stance and yield spread, using my own reusable toolkit?
+>
+> **Other questions you can answer the same way:**
+> - How do I reuse my functions in a new analysis without copying them?
 
 ```python
 from macrotools import real_rate, classify_stance, spread_bp, summarise
@@ -1562,6 +1857,12 @@ pip install -r requirements.txt
 ---
 
 ## 3.9 Capstone: Live Bank of Canada Data (18 min)
+
+> **Question it answers:** What is the latest overnight rate from the Bank of Canada's live API, how did it move over the last 30 days, and what stance does it imply?
+>
+> **Other questions you can answer the same way:**
+> - What is today's 2-year yield?
+> - What was the average exchange rate over the last month?
 
 Time to replace hard-coded numbers with a live API call — using the module you wrote.
 

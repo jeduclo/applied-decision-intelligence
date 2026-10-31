@@ -15,7 +15,7 @@
    is inverted (and tinted teal), so every component switches automatically. */
 :root[data-theme="light"] {
   color-scheme: light;
-  --page: #f1f1f1;
+  --page: #d8eeeb;
   --accent: #0f766e;
   --color-white: #1c2b2e;
   --color-slate-50: #18282b;
@@ -130,6 +130,20 @@ code, pre, kbd, .font-mono {
 .notes details > summary { cursor: pointer; color: var(--accent); font-weight: 600; }
 .notes details[open] > summary { margin-bottom: 0.75rem; }
 .notes details > * + * { margin-top: 0.8rem; }
+.notes blockquote.qbox {
+  position: relative; border: 1px solid color-mix(in oklab, var(--accent) 45%, transparent);
+  border-left: 4px solid var(--accent); border-radius: 0.85rem;
+  background: color-mix(in oklab, var(--accent) 9%, var(--color-slate-900));
+  padding: 0.85rem 1.1rem 0.85rem 3.1rem; font-size: 14.5px;
+}
+.notes blockquote.qbox::before {
+  content: "?"; position: absolute; left: 0.95rem; top: 0.85rem;
+  width: 1.45rem; height: 1.45rem; border-radius: 999px; display: grid; place-items: center;
+  background: var(--accent); color: var(--color-slate-950); font-weight: 700; font-size: 0.85rem;
+}
+.notes blockquote.qbox p:first-child strong { color: var(--accent); }
+.notes blockquote.qbox ul { margin-top: 0.3rem; }
+.notes blockquote.qbox li + li { margin-top: 0.15rem; }
 .notes sub, .notes sup { font-size: 0.75em; }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }

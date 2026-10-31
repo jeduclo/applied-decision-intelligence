@@ -155,6 +155,12 @@ For each column, name the two most important dimensions and one concrete check:
 
 ## 41.3 Contract-Driven Data Engineering (23 min)
 
+> **Question it answers:** What exactly should the data producer promise the people who use the data (schema, meaning, quality, freshness, owner)?
+>
+> **Other questions you can answer the same way:**
+> - Who do I contact when the CPI table is late?
+> - What does "unemployment_rate" promise to contain?
+
 A **data contract** is an agreement between a **producer** and a **consumer** of data about what the data will look like and how it will behave.
 
 ```
@@ -199,6 +205,11 @@ In contract-driven engineering, you write the **expectations first**, as an expl
 
 ## 41.4 Auditing Our Pipeline: Coverage and Gaps (25 min)
 
+> **Question it answers:** Which tables exist in the warehouse, and which of them are already protected by checks?
+>
+> **Other questions you can answer the same way:**
+> - Where are the blind spots in our data quality?
+
 Before adding checks, **map what exists**. Open the DuckDB CLI on the production warehouse:
 
 ```bash
@@ -207,6 +218,11 @@ duckdb macro.duckdb -readonly
 ```
 
 ### Inventory: what does dbt already test?
+
+> **Question it answers:** Which tests does the dbt project already run, and on which models?
+>
+> **Other questions you can answer the same way:**
+> - Is any important mart left untested?
 
 ```bash
 cd macro_dbt && source ../.venv/bin/activate
@@ -217,6 +233,12 @@ cd ..
 Group the tests by dimension. You'll find strong coverage of **uniqueness**, **integrity** and **validity** (ranges), some **timeliness**, and almost nothing for **consistency across sources**, **plausibility of changes** or **accuracy**.
 
 ### Prototype the missing checks in SQL
+
+> **Question it answers:** Does the CPI from the vector API agree with the CPI from the full StatCan table for every month?
+>
+> **Other questions you can answer the same way:**
+> - Do two sources of the same number disagree?
+> - Which months differ, and by how much?
 
 A quality check is ultimately a query. Prototype each gap in DuckDB **before** encoding it in GX.
 
@@ -269,6 +291,12 @@ order by age_days desc;
 ---
 
 ## 41.5 Rules vs Statistics: Setting Thresholds from History (23 min)
+
+> **Question it answers:** How large are typical and extreme month-to-month changes in unemployment, so I can set a sensible alarm threshold?
+>
+> **Other questions you can answer the same way:**
+> - What size of change should trigger a review?
+> - How unusual is this month's move?
 
 Two kinds of expectations:
 
@@ -330,6 +358,11 @@ The typical 99th percentile is on the order of one to two percent. A threshold o
 ---
 
 ## 41.6 Mini-Project: The Data Quality Plan (20 min)
+
+> **Question it answers:** Which checks should protect each table, how serious is each failure, and who acts on it?
+>
+> **Other questions you can answer the same way:**
+> - What happens when a critical check fails at 7 a.m.?
 
 Create `quality/DATA_QUALITY_PLAN.md`. This document is the **specification** for everything you'll build on Days 42–50. Fill in at least 12 checks covering every dimension from 41.2.
 
@@ -404,6 +437,11 @@ git push
 
 ## 42.1 A Separate Environment, and Why (20 min)
 
+> **Question it answers:** How do I install Great Expectations without breaking the dlt and dbt installation?
+>
+> **Other questions you can answer the same way:**
+> - Why do the tools need separate environments?
+
 dlt, dbt and GX are large libraries with many dependencies. Installing them all into one environment risks **version conflicts**: one tool needs version X of a shared library, another needs Y. The robust solution is the one you learned on Day 3: **one virtual environment per tool family**.
 
 ```bash
@@ -431,6 +469,11 @@ Add `.venv-gx/` to `.gitignore`.
 ---
 
 ## 42.2 The GX Mental Model (20 min)
+
+> **Question it answers:** How are connections, tables, slices of data, rules and results organised in Great Expectations?
+>
+> **Other questions you can answer the same way:**
+> - Which object holds my rules, and which runs them?
 
 GX organises everything in a hierarchy. Learn these words and the rest of the module becomes straightforward.
 
@@ -468,6 +511,11 @@ Data Context  ── the GX project: configuration + stored objects
 ---
 
 ## 42.3 A First Validation in an Ephemeral Context (25 min)
+
+> **Question it answers:** Are all provincial fiscal balances within a plausible range of −5% to +5% of GDP?
+>
+> **Other questions you can answer the same way:**
+> - Is every value in a column inside sensible bounds?
 
 An **ephemeral** context lives only in memory: nothing is saved. It's perfect for learning.
 
@@ -512,6 +560,11 @@ You just wrote your first **executable data contract clause**: *provincial balan
 
 ### Make it fail on purpose
 
+> **Question it answers:** What does Great Expectations report when a value is wrong, such as a slipped decimal point (−14.0 instead of −1.4)?
+>
+> **Other questions you can answer the same way:**
+> - Which rows failed, and what share of the data is affected?
+
 Change Ontario's value to `-14.0` (a slipped decimal point: a unit error, like Story 1) and run again. Now read `result.result`:
 
 ```
@@ -526,6 +579,11 @@ GX tells you **how many** rows failed, **what share**, and **which values**, far
 ## 42.4 Anatomy of an Expectation and Its Result (25 min)
 
 ### The parts of an expectation
+
+> **Question it answers:** How do I state a rule, allow a small share of exceptions, and record its severity and plan ID?
+>
+> **Other questions you can answer the same way:**
+> - How do I say "at least 99% of values must be between 0 and 100"?
 
 ```python
 gx.expectations.ExpectColumnValuesToBeBetween(
@@ -552,6 +610,11 @@ gx.expectations.ExpectColumnValuesToBeBetween(
 
 ### Result formats
 
+> **Question it answers:** How much detail about failing rows should a validation return?
+>
+> **Other questions you can answer the same way:**
+> - How do I see every failing value, not just a sample?
+
 ```python
 result = batch.validate(expectation, result_format="COMPLETE")
 ```
@@ -566,6 +629,11 @@ result = batch.validate(expectation, result_format="COMPLETE")
 Use `SUMMARY` by default. `COMPLETE` can be large on big tables.
 
 ### Validating several expectations at once: a first suite
+
+> **Question it answers:** Are the province codes complete, unique and valid, are balances within range, and are there exactly ten rows?
+>
+> **Other questions you can answer the same way:**
+> - Does the whole table pass all its rules at once?
 
 ```python
 suite = gx.ExpectationSuite(name="provinces_suite")
@@ -609,6 +677,11 @@ If every value were divided by 100, individual values would still lie inside ±5
 
 ## 42.5 A File-Based Data Context: the GX Project (23 min)
 
+> **Question it answers:** How do I save my data sources, rules and results so they're still there next time?
+>
+> **Other questions you can answer the same way:**
+> - Where does the GX project keep its configuration?
+
 An ephemeral context forgets everything. For real work, GX stores its configuration and objects **on disk**, in a folder you commit to Git, just like the dbt project.
 
 ```python
@@ -647,6 +720,11 @@ Running `gx.get_context(mode="file", project_root_dir="quality")` a second time 
 
 ### A helper module for the project
 
+> **Question it answers:** How do all my quality scripts get the same project and settings without repeating code?
+>
+> **Other questions you can answer the same way:**
+> - Where do I change the project location once?
+
 Create `quality/gx_helpers.py`. Every script in `quality/` will import it:
 
 ```python
@@ -676,6 +754,12 @@ def get_or_add_suite(context, name):
 ---
 
 ## 42.6 Mini-Project: Validating the BoC Decision Log (23 min)
+
+> **Question it answers:** Is the hand-typed decision log valid: dates unique and ordered, rates plausible, and changes in multiples of 25 basis points?
+>
+> **Other questions you can answer the same way:**
+> - Did someone type 2.5 instead of 0.25?
+> - Are any decision dates duplicated?
 
 The decision log (`macro_dbt/seeds/seed_boc_decisions.csv`) is **hand-maintained**, the kind of data most prone to typos. Write `quality/day42_decisions.py` that:
 
@@ -786,6 +870,11 @@ git push
 
 ## 43.1 A SQL Data Source for DuckDB (23 min)
 
+> **Question it answers:** How do I point Great Expectations at the DuckDB warehouse?
+>
+> **Other questions you can answer the same way:**
+> - What connection string does DuckDB need?
+
 GX connects to SQL databases through **SQLAlchemy connection strings**. For DuckDB, the format is:
 
 ```
@@ -794,6 +883,11 @@ duckdb:///relative/path/macro.duckdb          (three slashes = relative path)
 ```
 
 ### Keep the path out of the project file
+
+> **Question it answers:** How do I keep the database location out of the project file so it works on any machine?
+>
+> **Other questions you can answer the same way:**
+> - Why does the project fail on a colleague's computer?
 
 Hard-coding a path in `great_expectations.yml` would break on another machine. GX substitutes **`${VARIABLE}`** placeholders from environment variables, or from `gx/uncommitted/config_variables.yml` (never committed). It's the same idea as dlt's secrets on Day 23.
 
@@ -804,6 +898,11 @@ export MACRO_DUCKDB_URL="duckdb:////workspaces/macro-data-course/macro.duckdb"
 To make it permanent, add that line to `~/.bashrc`, or create a Codespaces secret named `MACRO_DUCKDB_URL`. For databases with passwords (Postgres, Snowflake, …), this mechanism is how credentials stay out of Git.
 
 ### Register the data source
+
+> **Question it answers:** How do I connect GX to the warehouse once, so every check can reuse the connection?
+>
+> **Other questions you can answer the same way:**
+> - Is the data source already registered?
 
 Create `quality/day43_connect.py`:
 
@@ -836,6 +935,11 @@ The YAML stores the **placeholder**, not the path. Commit it safely.
 ---
 
 ## 43.2 Table Assets at Every Layer (25 min)
+
+> **Question it answers:** Which tables in the raw, staging, intermediate and marts layers will GX check?
+>
+> **Other questions you can answer the same way:**
+> - How do I add another table to the quality checks?
 
 A **table asset** points GX at one table or view. Add assets for each layer we want to protect:
 
@@ -870,6 +974,11 @@ Validating **raw** data is the heart of Days 48–50: problems are cheapest to c
 
 ### Your first SQL-backed validation
 
+> **Question it answers:** Does the monthly mart have unique months, and are inflation and unemployment within plausible ranges?
+>
+> **Other questions you can answer the same way:**
+> - Is the main monthly table safe to publish today?
+
 ```python
 import great_expectations as gx
 
@@ -890,6 +999,12 @@ print("Unemployment 0–100%:", result.success, result.result.get("unexpected_co
 GX **translates the expectation into SQL** and DuckDB does the work: the table never gets loaded into Python. That's why SQL data sources scale to large tables.
 
 ### Validating raw text data
+
+> **Question it answers:** In the raw CPI table, are the date and value columns filled and in the expected text format?
+>
+> **Other questions you can answer the same way:**
+> - Did StatCan change its date format?
+> - Are there unexpected status flags?
 
 `raw_dlt.statcan_cpi_full` stores **every column as text** (Day 18: raw layers never guess types). Expectations still work, and a raw asset is the right place to check **formats**:
 
@@ -923,6 +1038,11 @@ Sometimes the thing you want to validate isn't a table but a **question**: "the 
 
 ### One series from the long table
 
+> **Question it answers:** Are the unemployment observations complete, and are their values and month-to-month changes plausible?
+>
+> **Other questions you can answer the same way:**
+> - Is one particular series inside its normal range?
+
 ```python
 UNEMP_SQL = """
     select obs_date, value
@@ -936,6 +1056,12 @@ except Exception:
 ```
 
 ### The consistency trick: validate a query of *violations*
+
+> **Question it answers:** Are there any months where the vector API's CPI disagrees with the full-table CPI?
+>
+> **Other questions you can answer the same way:**
+> - Do two related tables tell the same story?
+> - Does a sum of parts equal the total?
 
 Recall the "test = query returning violations" pattern (Days 18 and 36). In GX, wrap the violations query as an asset and expect **zero rows**:
 
@@ -966,6 +1092,11 @@ This implements plan check **Q04** from Day 41, a check that no dbt test covered
 ---
 
 ## 43.4 Batch Definitions: Validating One Month at a Time (23 min)
+
+> **Question it answers:** Is July 2026's CPI data valid, checked on its own instead of the whole history?
+>
+> **Other questions you can answer the same way:**
+> - Did the newest release pass, regardless of older data?
 
 A **whole-table** batch validates all history on every run. That's fine for small tables, but often you want to validate **only the newest data**, the month that just arrived, for three reasons:
 
@@ -1039,6 +1170,11 @@ You now know two ways to point GX at DuckDB data:
 
 ### The fallback pattern
 
+> **Question it answers:** How do I still validate the data with GX if the database connection doesn't support a check?
+>
+> **Other questions you can answer the same way:**
+> - How do I validate a pandas DataFrame instead of a SQL table?
+
 If a particular expectation isn't supported for DuckDB in your GX version, or you hit a connection issue, validate a **DataFrame** instead:
 
 ```python
@@ -1076,6 +1212,11 @@ print(batch.validate(gx.expectations.ExpectColumnValuesToMatchRegex(
 ---
 
 ## 43.6 Capstone: `setup_gx.py` + `smoke_check.py` (28 min)
+
+> **Question it answers:** How do I set up all data sources and assets reproducibly, and confirm with a quick check that everything connects?
+>
+> **Other questions you can answer the same way:**
+> - Is the quality project ready to run on a fresh machine?
 
 Build two scripts that turn today's experiments into a reproducible foundation:
 

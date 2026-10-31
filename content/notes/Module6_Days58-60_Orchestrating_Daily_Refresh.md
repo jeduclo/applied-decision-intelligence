@@ -30,6 +30,11 @@ After Day 57, `daily-refresh` runs on schedules with retries, caching, fingerpri
 
 ### The final architecture
 
+> **Question it answers:** How do schedules, the release watcher, ingestion, the safety gate, dbt, quality checks and publishing fit together?
+>
+> **Other questions you can answer the same way:**
+> - What happens between a StatCan release and an updated dashboard?
+
 ```
                          ┌─────────────────────── Prefect ───────────────────────┐
 schedules (09:15/17:30)  │ daily-refresh                                         │
@@ -103,6 +108,11 @@ On Day 52 we wrapped every tool as a subprocess: simple and robust. Now, with th
 
 ## 58.2 Refactoring Ingestion into a Library (25 min)
 
+> **Question it answers:** How do I make the ingestion logic callable from both the command line and the orchestrator?
+>
+> **Other questions you can answer the same way:**
+> - How do I run one source from Python and get a structured result back?
+
 `ingest.py` (Day 30) mixes **logic** (run a source, collect errors) with a **command-line interface** (flags, exit codes). Prefect needs the logic as importable functions. The classic refactor: **move logic into a module and keep the script as a thin wrapper**.
 
 Create `macro_ingest/runner.py`:
@@ -164,6 +174,11 @@ python -m pytest -q                      # Day 10 + Day 29 tests still pass
 Now each source becomes its own task, so FRED being down retries **FRED only**.
 
 ### Which exceptions are transient?
+
+> **Question it answers:** Which ingestion errors are temporary and worth retrying, and which should never be retried?
+>
+> **Other questions you can answer the same way:**
+> - Should a schema-contract violation be retried? (No.)
 
 In-process, failures arrive as **exceptions**, not exit codes. dlt wraps underlying errors (e.g. a `PipelineStepFailed` around a `ConnectionError`), so we inspect the **whole exception chain**:
 
@@ -241,6 +256,11 @@ def _noop():
 
 ### The extract_load subflow
 
+> **Question it answers:** How do I load each source (BoC, FRED, StatCan) as its own tracked step, so one failure doesn't hide the others?
+>
+> **Other questions you can answer the same way:**
+> - Which source failed this morning?
+
 ```python
 from prefect import flow
 
@@ -303,6 +323,12 @@ Matching on class **names** keeps the module independent of exact import paths i
 ---
 
 ## 58.4 dbt In-Process: `dbtRunner` with Model-Level Results (25 min)
+
+> **Question it answers:** Which dbt models and tests passed, failed or were skipped in this run, and how long did each take?
+>
+> **Other questions you can answer the same way:**
+> - Which model is the slowest?
+> - Which test failed?
 
 dbt can be invoked from Python with **`dbtRunner`**. Unlike a subprocess, it returns **structured results**: every model, test, seed and snapshot with its status, timing and message. It also accepts **callbacks** that receive dbt's log events, which we forward to Prefect with the right level.
 
@@ -378,6 +404,11 @@ dbt_invoke.with_options(name="dbt:docs")(["docs", "generate", "--target", "prod"
 
 ## 58.5 Targeted Rebuilds: Run dbt Only Downstream of What Changed (25 min)
 
+> **Question it answers:** If only the LFS table changed, how do I rebuild only the models that depend on it?
+>
+> **Other questions you can answer the same way:**
+> - How much time does a targeted rebuild save?
+
 Day 55's fingerprint was **all-or-nothing**: any change triggered a full `dbt build`. But if only the **LFS** table was republished, there's no need to rebuild CPI, GDP or open-economy models. dbt's **graph selectors** (Day 31) can express exactly "everything downstream of this source":
 
 ```bash
@@ -385,6 +416,11 @@ dbt build --select source:statcan.lfs_full+
 ```
 
 ### Per-source fingerprints
+
+> **Question it answers:** Which raw sources have actually changed since the last build?
+>
+> **Other questions you can answer the same way:**
+> - Did FRED data change today, or only the BoC data?
 
 Extend `orchestration/tasks/fingerprints.py` so the fingerprint is a **dictionary per dbt source**:
 
@@ -421,6 +457,11 @@ def source_fingerprints() -> dict:
 
 ### Deciding the selection
 
+> **Question it answers:** Given what changed, should dbt skip, rebuild everything, or rebuild only some models?
+>
+> **Other questions you can answer the same way:**
+> - Why did today's run do a full rebuild? (Code changed.)
+
 ```python
 def plan_dbt_selection(current: dict, last: dict | None, force: bool) -> list[str] | None:
     """None = skip dbt; [] = full build; otherwise the list of selectors to build."""
@@ -454,6 +495,11 @@ It includes `stg_statcan__lfs`, `int_lfs__headline` and `lfs_provincial_monthly`
 ---
 
 ## 58.6 Mini-Project: extract_load and transform v2 (15 min)
+
+> **Question it answers:** Does the new transform stage rebuild exactly what changed and report model-level results?
+>
+> **Other questions you can answer the same way:**
+> - Is the targeted rebuild giving the same marts as a full rebuild?
 
 Assemble the new transform subflow:
 
@@ -545,6 +591,11 @@ We'll do both: direct triggering for guaranteed behaviour, and events for observ
 
 ## 59.2 Fixing the Lock: Readers *and* Writers (23 min)
 
+> **Question it answers:** How do I let many jobs read the warehouse at once, but give a writer exclusive access?
+>
+> **Other questions you can answer the same way:**
+> - Why did a read fail while a write was running?
+
 On Day 57 we serialised **writers** with `duckdb-writer`. But DuckDB's rule across processes is stricter:
 
 > **A database file can be opened either by one read-write process, or by any number of read-only processes, but not both at once.**
@@ -600,6 +651,11 @@ Day 50's `ingest_statcan_tables.py` performs WAP in one script. As a flow, each 
 Move the functions from `ingest_statcan_tables.py` into `macro_ingest/wap.py`: `published_release_times()`, `write_incoming(changed)`, `audit(table)`, `publish(con, table)`, `quarantine(con, table, stamp)`, `record_published(current, product_ids)`. Keep the script as a thin CLI over them (the 58.2 pattern).
 
 ### Tasks
+
+> **Question it answers:** How do I run the write, audit and publish steps as tracked tasks with the right database access?
+>
+> **Other questions you can answer the same way:**
+> - Which step of the safety gate stopped this release?
 
 Create `orchestration/tasks/wap.py`:
 
@@ -668,6 +724,11 @@ def record_markers(current: dict, published_pids: list[str]):
 ```
 
 ### The flow
+
+> **Question it answers:** When a StatCan table is republished, how do I audit it, publish it, and refresh only what depends on it?
+>
+> **Other questions you can answer the same way:**
+> - What did today's LFS release change downstream?
 
 Create `orchestration/flows/statcan_release.py`:
 
@@ -743,6 +804,12 @@ Add the deployment to `prefect.yaml` (no schedule: it's triggered):
 
 ## 59.4 The Release Watcher: Events, Triggers, Idempotency (23 min)
 
+> **Question it answers:** Has StatCan republished any table we track, and if so, has its update already been processed?
+>
+> **Other questions you can answer the same way:**
+> - How quickly after 08:30 does the warehouse reflect a new release?
+> - Did we process this release twice?
+
 Create `orchestration/flows/release_watcher.py`:
 
 ```python
@@ -802,6 +869,11 @@ Schedule it during the release window: every 10 minutes, 08:30–10:50 ET on wee
 
 ### Optional: an automation instead of `run_deployment`
 
+> **Question it answers:** How can a "table republished" event start the release flow automatically?
+>
+> **Other questions you can answer the same way:**
+> - How do I react to events instead of polling?
+
 Prefect deployments can declare **triggers** that start a run when a matching event occurs. In `prefect.yaml`, under the `wap` deployment:
 
 ```yaml
@@ -824,6 +896,12 @@ With such a trigger, the watcher only needs to **emit** events. The trade-off: e
 ---
 
 ## 59.5 Release Briefings: Telling Economists What Changed (20 min)
+
+> **Question it answers:** After a release, what does it say in economic terms: which provinces have the highest unemployment, and what is the latest inflation?
+>
+> **Other questions you can answer the same way:**
+> - What changed in today's CPI release?
+> - Which provinces saw unemployment rise?
 
 When a release is published, the people who care want the **economics**, not the plumbing: *"September LFS: unemployment 6.9% (+0.1pp); Alberta highest at …"*. Create a release-specific briefing in `orchestration/tasks/reporting.py`:
 
@@ -869,6 +947,11 @@ Call it at the end of `statcan_release` when anything was published, and include
 ---
 
 ## 59.6 Mini-Project: Simulate a Release, End to End (20 min)
+
+> **Question it answers:** If I pretend StatCan just released the LFS, does the whole chain (watch, audit, publish, rebuild, brief) work?
+>
+> **Other questions you can answer the same way:**
+> - How long does it take from release to briefing?
 
 You can't wait for StatCan's calendar, so use the watcher's `simulate` parameter to force the path:
 
@@ -919,6 +1002,11 @@ git add . && git commit -m "Day 59: readers-writer lock, WAP flow, release watch
 ---
 
 ## 60.1 The Last Mile: The Notebook's Dashboards as Code (30 min)
+
+> **Question it answers:** How do I rebuild the dashboards automatically from the marts after every refresh?
+>
+> **Other questions you can answer the same way:**
+> - Are the dashboards showing today's data?
 
 The course notebook draws its dashboards from data it fetches itself (Cells 2–5). Since Day 40, those numbers come from **tested marts** in `data/marts/*.parquet`. The final step is to make **building the dashboards** part of the pipeline: a script that reads the marts and writes standalone HTML files, exactly as the notebook's `fig.write_html(...)` calls did.
 
@@ -1042,6 +1130,11 @@ Port the notebook's other modules into `build_dashboards.py`, one function each,
 
 ## 60.2 `daily_refresh` v4: The Complete Pipeline (20 min)
 
+> **Question it answers:** How does the complete daily refresh run every stage, apply the state policy and publish the results?
+>
+> **Other questions you can answer the same way:**
+> - Did today's full refresh succeed, warn or fail, and why?
+
 ```python
 """Daily macro refresh — v4 (Day 60): the complete orchestrated pipeline."""
 from prefect import flow, get_run_logger, task
@@ -1091,6 +1184,11 @@ Points to note:
 
 ## 60.3 Dev and Prod Environments: Testing the Whole Platform Safely (23 min)
 
+> **Question it answers:** How do I run the whole platform against a copy of the warehouse without touching production?
+>
+> **Other questions you can answer the same way:**
+> - Is this run writing to dev or prod?
+
 You've tested pieces in isolation (dev schemas in dbt, practice pipelines in dlt, throwaway GX assets). The whole platform deserves a **dev environment**: same code, different warehouse file, so you can run end-to-end experiments without risking production.
 
 Add to `orchestration/settings.py`:
@@ -1118,6 +1216,11 @@ def activate(environment: str):
 Give `daily_refresh` a parameter `environment: str = "prod"`, call `target = activate(environment)` first, and pass `target` downstream. Variables (fingerprints) are already keyed by target (58.6).
 
 ### Creating the dev copy
+
+> **Question it answers:** How do I create a development copy of the warehouse safely?
+>
+> **Other questions you can answer the same way:**
+> - When is it safe to copy the database file?
 
 ```bash
 # with no pipeline running (the copy must not happen during a write)
@@ -1150,6 +1253,11 @@ Most of the warehouse can be **rebuilt** from the APIs plus code. Some of it **c
 | | seeds and code: in **Git**, already backed up |
 
 ### A backup flow
+
+> **Question it answers:** How do I back up the warehouse and the history files automatically every week?
+>
+> **Other questions you can answer the same way:**
+> - When was the last backup taken?
 
 Create `orchestration/flows/backup.py`:
 
@@ -1204,6 +1312,11 @@ def backup():
 
 ### The restore drill
 
+> **Question it answers:** Can the backup actually be restored, with all schemas and tables present?
+>
+> **Other questions you can answer the same way:**
+> - How long would it take to recover after losing the warehouse?
+
 A backup you haven't restored is a hope, the same principle as every drill in this course:
 
 ```bash
@@ -1217,6 +1330,11 @@ Compare row counts of key tables between `macro.duckdb` and `restored.duckdb` (t
 ---
 
 ## 60.5 The Production-Readiness Review (28 min)
+
+> **Question it answers:** Is the platform ready for production on correctness, reliability, security, operability and documentation?
+>
+> **Other questions you can answer the same way:**
+> - What still needs fixing before others depend on these data?
 
 Professional teams don't declare a system "production-ready" by feel. They walk through a **checklist** with evidence. Create `PRODUCTION_READINESS.md` and score each item **✅ done (with evidence) · 🟡 partial · ❌ missing**. Link evidence: files, run names, artifacts, drill logs.
 

@@ -112,6 +112,12 @@ Delete the old `models/staging/_sources.yml`, then update the two StatCan models
 
 ### One staging model per source table
 
+> **Question it answers:** How do I give each raw table exactly one clean staging model, organised by provider?
+>
+> **Other questions you can answer the same way:**
+> - Where is the cleaning logic for FRED data?
+> - Which model should I change if the BoC renames a field?
+
 **`models/staging/boc/stg_boc__observations.sql`**
 
 ```sql
@@ -154,6 +160,11 @@ dbt ls --select staging
 
 ## 34.3 Intermediate: Organised by Economic Concept (23 min)
 
+> **Question it answers:** How do I organise intermediate models by economic topic (CPI, GDP, rates) rather than by data source?
+>
+> **Other questions you can answer the same way:**
+> - Where do I find every CPI calculation?
+
 Group intermediate models by **concept**, not by source:
 
 ```bash
@@ -164,6 +175,11 @@ git mv models/intermediate/int_rates__*.sql models/intermediate/macro/
 ```
 
 ### The union moves here
+
+> **Question it answers:** What are all observations from every provider, combined and labelled with their series information?
+>
+> **Other questions you can answer the same way:**
+> - How many observations does each provider supply?
 
 **`models/intermediate/macro/int_macro__observations.sql`**
 
@@ -214,6 +230,11 @@ Update `int_rates__monthly_long` to read `{{ ref('int_macro__observations') }}` 
 
 ### Ephemeral helpers
 
+> **Question it answers:** How do I share a "CPI series that are still published" filter between models without storing it?
+>
+> **Other questions you can answer the same way:**
+> - How do I exclude terminated CPI series everywhere at once?
+
 A helper that just filters is a good **ephemeral** model (Day 32). Create `models/intermediate/cpi/int_cpi__active.sql`:
 
 ```sql
@@ -243,6 +264,11 @@ Facts are joined to dimensions by keys: the star schema you built by hand on Day
 
 ### One-big-table (OBT) style
 
+> **Question it answers:** How do I give analysts one wide table with everything they need for each month?
+>
+> **Other questions you can answer the same way:**
+> - Which marts should be wide tables, and which should be dimensional?
+
 A single wide table with everything a consumer needs: our `macro_monthly` and `macro_quarterly` panels from Day 20. Dashboards and econometric software love these, because no joins are needed.
 
 **In practice you use both:** dimensional models as the reusable core, and OBT panels built on top for specific consumers.
@@ -252,6 +278,12 @@ mkdir -p models/marts/{core,monetary}
 ```
 
 ### `dim_date`: a calendar dimension
+
+> **Question it answers:** For any date, what are its year, quarter, month, month start and quarter start?
+>
+> **Other questions you can answer the same way:**
+> - Which days fall in Q3 2024?
+> - How do I join daily and monthly data on a calendar?
 
 Every time-series project needs a calendar. Create `models/marts/core/dim_date.sql`:
 
@@ -282,6 +314,12 @@ from spine
 
 ### `dim_series`: every series, described once
 
+> **Question it answers:** For every series, what are its provider, frequency, aggregation rule, staleness limit and official label?
+>
+> **Other questions you can answer the same way:**
+> - Which series are monthly?
+> - What is the official description of each series?
+
 `models/marts/core/dim_series.sql`:
 
 ```sql
@@ -309,6 +347,11 @@ Port `sql/32_policy_cycles.sql` to `models/marts/monetary/policy_cycles.sql`. Re
 
 ## 34.5 DAG Hygiene (18 min)
 
+> **Question it answers:** Does only the staging layer read raw sources, and do marts avoid reading staging directly?
+>
+> **Other questions you can answer the same way:**
+> - Are there shortcuts in my model graph that will cause trouble later?
+
 Good projects follow a few structural rules. You can check each with `dbt ls` or the lineage graph.
 
 | Rule | Why | Check |
@@ -329,6 +372,11 @@ dbt ls --select +marts --resource-type model
 ---
 
 ## 34.6 Mini-Project: Restructure `macro_dbt` (23 min)
+
+> **Question it answers:** How should the whole project be laid out so anyone can find any model quickly?
+>
+> **Other questions you can answer the same way:**
+> - Where does a new model for housing data belong?
 
 1. Finish the moves from 34.2–34.4 so the tree looks like this:
 
@@ -416,6 +464,11 @@ Call it anywhere with `{{ macro_name(...) }}`.
 
 ### Example 1 — Percentage change
 
+> **Question it answers:** How do I write the percent-change and annualisation formulas once and reuse them in every model?
+>
+> **Other questions you can answer the same way:**
+> - How do I make sure every model computes growth the same way?
+
 Create `macros/economics.sql`:
 
 ```sql
@@ -449,6 +502,11 @@ The arguments are **strings of SQL**, pasted into the template. The macro doesn'
 
 ### Example 2 — Monthly aggregation rule
 
+> **Question it answers:** What is each series' monthly value, using month-end for rates and averages for prices, with one shared rule?
+>
+> **Other questions you can answer the same way:**
+> - How do I apply the right monthly aggregation to any series?
+
 ```sql
 {% macro monthly_value(value_col, date_col, agg_col) -%}
     case
@@ -459,6 +517,11 @@ The arguments are **strings of SQL**, pasted into the template. The macro doesn'
 ```
 
 ### Example 3 — Recession overlap
+
+> **Question it answers:** Does a given period overlap any official recession?
+>
+> **Other questions you can answer the same way:**
+> - Which quarters or policy cycles fell during a recession?
 
 Create `macros/calendar.sql`:
 
@@ -511,6 +574,11 @@ Expected: `r = -0.75`, `r_exact ≈ -0.728`. The same numbers as Day 1, now as r
 ---
 
 ## 35.3 A Model-Generating Macro: `growth_rates()` (33 min)
+
+> **Question it answers:** How do I compute gap-safe growth rates for any series (monthly CPI or quarterly GDP) with one reusable macro?
+>
+> **Other questions you can answer the same way:**
+> - What is YoY growth for any new series I add?
 
 Day 33's `horizons` loop lived inside `int_cpi__growth`. GDP needs the same logic with quarters. Let's write it once.
 
@@ -581,6 +649,11 @@ New Jinja features here:
 
 ### Put the horizons in `vars`
 
+> **Question it answers:** Where do I define which growth horizons (MoM, 3-month, YoY, QoQ…) are computed?
+>
+> **Other questions you can answer the same way:**
+> - How do I add a 24-month growth rate everywhere?
+
 In `dbt_project.yml`:
 
 ```yaml
@@ -597,6 +670,11 @@ vars:
 ```
 
 ### The CPI growth model becomes six lines
+
+> **Question it answers:** What are the CPI growth rates for every geography and component, from a six-line model?
+>
+> **Other questions you can answer the same way:**
+> - What is the 6-month annualised inflation rate in each province?
 
 ```sql
 -- models/intermediate/cpi/int_cpi__growth.sql
@@ -629,6 +707,11 @@ Day 33 left a known duplication: `vars.rate_series` repeats `seed_series.csv`. J
 
 ### Step 1 — Mark panel membership in the seed
 
+> **Question it answers:** Which series belong in the monthly rates panel?
+>
+> **Other questions you can answer the same way:**
+> - How do I add or remove a series from the panel without editing SQL?
+
 Add a column to `seeds/seed_series.csv`:
 
 ```csv
@@ -647,6 +730,11 @@ v2062815,unemployment_rate,statcan,monthly,last,60,true
 and type it in `seeds/_seeds.yml` (`in_rates_panel: boolean`). Run `dbt seed --select seed_series`.
 
 ### Step 2 — A macro that reads the seed
+
+> **Question it answers:** How can a model ask the database which series are in the panel when it is compiled?
+>
+> **Other questions you can answer the same way:**
+> - How do I generate SQL from a list stored in a table?
 
 Create `macros/get_series_names.sql`:
 
@@ -679,6 +767,11 @@ New ideas:
 - `{{ return(names) }}` makes the macro return a **Python-like value** (a list) instead of text.
 
 ### Step 3 — Use it
+
+> **Question it answers:** What does the monthly rates panel look like, with columns generated automatically from the seed?
+>
+> **Other questions you can answer the same way:**
+> - Will a new series appear as a column just by adding it to the seed?
 
 ```sql
 -- models/intermediate/macro/int_rates__monthly.sql
@@ -746,6 +839,11 @@ dbt show --inline "select '{{ get_series_names(where=\"frequency = 'daily'\") | 
 
 ### Documenting macros
 
+> **Question it answers:** What does each macro do, and what arguments does it take?
+>
+> **Other questions you can answer the same way:**
+> - How should a colleague call the growth_rates macro?
+
 Create `macros/_macros.yml`:
 
 ```yaml
@@ -779,6 +877,11 @@ Macro documentation appears on the docs site (`dbt docs generate`), next to the 
 ---
 
 ## 35.6 Mini-Project: DRY the CPI, GDP and Rates Models (23 min)
+
+> **Question it answers:** How many lines of SQL did the macros save, and do CPI, GDP and rates models still give the same numbers?
+>
+> **Other questions you can answer the same way:**
+> - Is the project smaller and easier to maintain now?
 
 1. **GDP.** Split `int_gdp__growth` into:
    - `int_gdp__levels` (view): quarter, `real_gdp`, `nominal_gdp`, `gdp_deflator` (Day 20's first CTEs);
@@ -859,6 +962,12 @@ dbt build && cd .. && git add . && git commit -m "Day 35: macros, growth_rates, 
 
 ## 36.1 Generic Tests (25 min)
 
+> **Question it answers:** Are CPI months never missing, geography levels always valid, and keys never duplicated?
+>
+> **Other questions you can answer the same way:**
+> - Does any model contain nulls where it shouldn't?
+> - Are all status flags known values?
+
 A **data test** in dbt is exactly what you built on Day 18: a query that returns violating rows, where **zero rows = pass**. dbt ships four ready-made **generic** tests, applied in YAML:
 
 | Test | Asserts |
@@ -921,6 +1030,11 @@ The `relationships` test replaces Day 30's `series_without_seed.sql`: every inge
 
 ### Seeing failures
 
+> **Question it answers:** Which exact rows broke a test?
+>
+> **Other questions you can answer the same way:**
+> - Where are the duplicate CPI rows?
+
 ```bash
 dbt test --select stg_statcan__cpi --store-failures
 ```
@@ -928,6 +1042,11 @@ dbt test --select stg_statcan__cpi --store-failures
 With `--store-failures`, dbt saves each failing test's rows in a table (in a schema like `dev_dbt_test__audit`), so you can query exactly *what* failed.
 
 ### Severity and thresholds
+
+> **Question it answers:** Which problems should only warn me, and which should stop the build?
+>
+> **Other questions you can answer the same way:**
+> - How do I accept a few unknown flags in old data but not in recent data?
 
 ```yaml
       - name: status_flag
@@ -972,6 +1091,12 @@ ls dbt_packages/
 
 ### Useful `dbt_utils` tests
 
+> **Question it answers:** Is each month × geography × component × base combination unique, and are values within sensible ranges?
+>
+> **Other questions you can answer the same way:**
+> - Are there gaps in a monthly series?
+> - Is a composite key really unique?
+
 ```yaml
 models:
   - name: stg_statcan__cpi
@@ -1007,6 +1132,11 @@ models:
 | `recency` | "the latest date is recent" (per model) |
 
 ### Useful `dbt_utils` macros
+
+> **Question it answers:** How do I select all columns except a few, or build a calendar, without writing it by hand?
+>
+> **Other questions you can answer the same way:**
+> - How do I drop technical columns from a model?
 
 ```sql
 -- all columns except some
@@ -1048,6 +1178,11 @@ select
 ---
 
 ## 36.3 Singular Tests: Porting Module 2's SQL Tests (20 min)
+
+> **Question it answers:** Does each policy cycle's total basis points equal the change from the rate before to the rate after?
+>
+> **Other questions you can answer the same way:**
+> - Do my derived numbers agree with each other?
 
 A **singular test** is a `.sql` file in `tests/` returning violating rows: exactly the Day 18 format, now with `ref()`. Port the tests that don't fit a generic pattern.
 
@@ -1100,6 +1235,12 @@ dbt test --select test_type:singular
 ---
 
 ## 36.4 Custom Generic Tests: Economic Ranges (20 min)
+
+> **Question it answers:** Are inflation, unemployment and rates inside economically plausible ranges?
+>
+> **Other questions you can answer the same way:**
+> - Did a units error turn 2.5% into 250%?
+> - Is any rate negative where it shouldn't be?
 
 When the same *kind* of check applies to many columns, write your own **generic test**. It's a special macro that receives the model and column.
 
@@ -1164,6 +1305,11 @@ Use them like built-ins:
 ---
 
 ## 36.5 Unit Tests: Proving the Growth Macro Is Gap-Safe (23 min)
+
+> **Question it answers:** Does the growth calculation return NULL after a missing quarter, and compare YoY exactly four quarters back?
+>
+> **Other questions you can answer the same way:**
+> - Is my calculation logic right, independent of the real data?
 
 Data tests check **real data**. **Unit tests** check **logic**, using tiny hand-made inputs with known answers (available in dbt ≥ 1.8). They're the SQL version of Day 10's `pytest` parser tests.
 
@@ -1241,6 +1387,12 @@ If the mean shows a floating-point mismatch (e.g. `0.7199999…`), choose values
 
 ## 36.6 Source Freshness (15 min)
 
+> **Question it answers:** How long ago was each raw source loaded, and is any of it too old?
+>
+> **Other questions you can answer the same way:**
+> - Did the BoC data stop updating?
+> - When was FRED last loaded?
+
 Is the **raw** data up to date? dbt can check how long ago each source was loaded. dlt's `_dlt_load_id` is a Unix timestamp stored as text, so we convert it.
 
 In `models/staging/boc/_boc__sources.yml`, add to the source:
@@ -1277,6 +1429,11 @@ Both matter. A pipeline can run every day and still load stale data if a provide
 ---
 
 ## 36.7 Wiring Tests into the Pipeline (13 min)
+
+> **Question it answers:** How do I make the pipeline stop before bad data reaches the marts?
+>
+> **Other questions you can answer the same way:**
+> - Did today's build pass all tests?
 
 `dbt build` runs seeds, models, snapshots **and tests** in DAG order. If a test fails with severity `error`, dbt **skips everything downstream** of the failing model, so bad data can't flow into marts.
 
@@ -1342,6 +1499,11 @@ Honestly, for most of our models, **no**: DuckDB rebuilds them in seconds. But t
 
 ### What counts as "new"? Use the load timestamp
 
+> **Question it answers:** How do I process only observations that are new or revised since the last build?
+>
+> **Other questions you can answer the same way:**
+> - How do I make large tables rebuild quickly every day?
+
 Thanks to dlt's `merge`, a **revised** observation is rewritten with a **new load ID** (Day 27). So "rows loaded after my last run" captures both new observations **and** revisions. This is more robust than "dates after my latest date", which would miss revisions entirely.
 
 Create `models/marts/core/fct_observations.sql`:
@@ -1382,6 +1544,11 @@ New Jinja pieces:
 
 ### See it work
 
+> **Question it answers:** How many rows does each incremental run actually process?
+>
+> **Other questions you can answer the same way:**
+> - Did the latest build pick up the new data?
+
 ```bash
 dbt run --select fct_observations                 # first run: builds the full table
 dbt run --select fct_observations                 # second run: nothing new → inserts 0 rows
@@ -1393,6 +1560,11 @@ cat target/run/macro_dbt/models/marts/core/fct_observations.sql
 Read the executed SQL on an incremental run: a temporary batch, a `delete` of matching keys, then an `insert`.
 
 ### Full refresh
+
+> **Question it answers:** How do I rebuild an incremental table from scratch after changing its logic?
+>
+> **Other questions you can answer the same way:**
+> - How do I recover from a bad incremental build?
 
 When logic changes, rebuild from scratch:
 
@@ -1422,6 +1594,12 @@ where a.n <> b.n
 ---
 
 ## 37.2 Snapshots: Tracking Revisions Inside the Warehouse (20 min)
+
+> **Question it answers:** How has each month's national CPI value been revised over time, and when did each revision happen?
+>
+> **Other questions you can answer the same way:**
+> - Which CPI months were revised in the last release?
+> - What was the value before the revision?
 
 On Day 27 you kept **vintages** in dlt with an append-only table. dbt offers a warehouse-side alternative: **snapshots**, which record how a row changes over time (a *type-2 slowly changing dimension*).
 
@@ -1482,6 +1660,11 @@ Snapshots only see what exists **when they run**, so schedule `dbt snapshot` wit
 
 ### A macro for identical staging models
 
+> **Question it answers:** How do I generate the three almost identical provider staging models from one macro?
+>
+> **Other questions you can answer the same way:**
+> - How do I add a fourth provider with one line?
+
 The three `stg_<provider>__observations` models differ only in the source name:
 
 ```sql
@@ -1517,6 +1700,11 @@ Each model file becomes one line:
 
 ### `dbt_utils.union_relations`
 
+> **Question it answers:** How do I combine all provider models even if their columns differ slightly?
+>
+> **Other questions you can answer the same way:**
+> - How do I stack tables safely when one has an extra column?
+
 Instead of hand-writing `union all` in `int_macro__observations`:
 
 ```sql
@@ -1540,6 +1728,11 @@ with unioned as (
 Macros can also **do things** rather than generate model SQL: reports, maintenance, administration. Run them with `dbt run-operation`.
 
 ### A staleness report
+
+> **Question it answers:** Which series are older than their allowed staleness, and what is their latest date?
+>
+> **Other questions you can answer the same way:**
+> - Which indicators haven't updated this week?
 
 Create `macros/ops/report_stale_series.sql`:
 
@@ -1578,6 +1771,11 @@ dbt run-operation report_stale_series
 
 ### Cleaning up dev schemas
 
+> **Question it answers:** How do I safely remove old development schemas, with a dry run first?
+>
+> **Other questions you can answer the same way:**
+> - Which dev schemas are cluttering the warehouse?
+
 ```sql
 -- macros/ops/drop_dev_schemas.sql
 {% macro drop_dev_schemas(dry_run=true) %}
@@ -1614,6 +1812,11 @@ Notice the **guard rails**: the macro refuses to run outside `dev`, and it defau
 
 ### Conventions, written down
 
+> **Question it answers:** What naming, layering and testing rules should every model in this project follow?
+>
+> **Other questions you can answer the same way:**
+> - How should I name a new intermediate model?
+
 Add `macro_dbt/CONVENTIONS.md`:
 
 ```markdown
@@ -1629,6 +1832,11 @@ Add `macro_dbt/CONVENTIONS.md`:
 ```
 
 ### Optional: automatic SQL linting
+
+> **Question it answers:** How do I check SQL style automatically before committing?
+>
+> **Other questions you can answer the same way:**
+> - Does my SQL follow the project's style rules?
 
 ```bash
 pip install sqlfluff sqlfluff-templater-dbt
@@ -1648,6 +1856,11 @@ With a small `.sqlfluff` configuration (`templater = dbt`, `dialect = duckdb`), 
 ---
 
 ## 37.6 Capstone: A Complete, DRY, Tested Intermediate Layer (35 min)
+
+> **Question it answers:** What are the smoothed inflation measures, base-effect projections and core proxies, built with reusable macros and fully tested?
+>
+> **Other questions you can answer the same way:**
+> - Does the dbt intermediate layer match Module 2's numbers?
 
 Finish porting the remaining Module 2 intermediate logic, applying everything from Days 34–37.
 

@@ -69,6 +69,11 @@ Reuse the practice helpers from Day 24 (`common.py` with `practice_pipeline` and
 
 ## 28.1 `RESTClient` (25 min)
 
+> **Question it answers:** How do I set up the Bank of Canada API once (address, headers, paging) and reuse it for every request?
+>
+> **Other questions you can answer the same way:**
+> - How do I stop repeating the same request settings in every resource?
+
 So far every resource built URLs and called `requests.get` itself. `RESTClient` bundles the things every call to one API shares (base URL, headers, authentication, pagination) into a single configured object. It uses dlt's retrying session underneath.
 
 Create `day28/rest_client_basics.py`:
@@ -123,6 +128,11 @@ for page in valet.paginate("observations/FXCADUSD/json",
 
 ## 28.2 Authentication Helpers (20 min)
 
+> **Question it answers:** How do I attach my FRED API key to every request automatically, without it appearing in my code?
+>
+> **Other questions you can answer the same way:**
+> - How do I use APIs that need a token or a password?
+
 dlt ships authentication classes so secrets are attached consistently, and never appear in your resource code.
 
 ```python
@@ -169,6 +179,11 @@ Many APIs return large results in **pages**: records 1–100, then 101–200, an
 | No pagination | everything in one response | `SinglePagePaginator` |
 
 ### A keyless, paginated, economic API: the World Bank
+
+> **Question it answers:** What does a World Bank indicator response look like, and how many pages of results does it have?
+>
+> **Other questions you can answer the same way:**
+> - What was Canada's GDP growth according to the World Bank?
 
 The World Bank Indicators API returns a two-element list: **metadata** (including the total number of pages), then the **records**:
 
@@ -258,6 +273,11 @@ For many APIs you don't need to write resource code at all. You **describe** the
 
 ### Example 1 — World Bank, declaratively
 
+> **Question it answers:** What was Canada's real GDP growth each year, loaded from the World Bank by configuration alone?
+>
+> **Other questions you can answer the same way:**
+> - How do I load a paginated API without writing a loop?
+
 ```python
 from dlt.sources.rest_api import rest_api_source
 from common import practice_pipeline
@@ -288,6 +308,11 @@ print(p.run(rest_api_source(config)))
 Same result as 28.3, with zero resource code. The configuration *is* the extractor.
 
 ### Example 2 — Valet with a declarative incremental cursor
+
+> **Question it answers:** How do I load only new overnight-rate observations using configuration instead of code?
+>
+> **Other questions you can answer the same way:**
+> - How do I make a configured API load incremental?
 
 The REST API source can also manage an incremental cursor (Day 27): it fills a query parameter with the last value seen.
 
@@ -333,6 +358,11 @@ For our **core** BoC and StatCan extractors, we'll keep code-based resources but
 
 ## 28.5 POST Endpoints: StatCan WDS Through `RESTClient` (15 min)
 
+> **Question it answers:** What happens when one of the StatCan vectors I request doesn't exist?
+>
+> **Other questions you can answer the same way:**
+> - How do I call an API that needs a JSON request body?
+
 StatCan's vector endpoints use **POST** with a JSON body (Day 10). `RESTClient` handles that too:
 
 ```python
@@ -355,6 +385,12 @@ Notice: **HTTP 200**, yet one item says `FAILED`. `raise_for_status()` can't cat
 ---
 
 ## 28.6 Mini-Project: A Declarative G7 GDP-Growth Source (23 min)
+
+> **Question it answers:** How did real GDP growth, inflation and unemployment compare across the G7 countries since 2000?
+>
+> **Other questions you can answer the same way:**
+> - Did Canada grow faster than the US after 2020?
+> - Which G7 economy had the highest inflation in 2022?
 
 Extend the World Bank configuration to three indicators, each as its own resource, loaded into one dataset:
 
@@ -490,6 +526,11 @@ Two principles follow:
 
 ## 29.2 Retries and Timeouts, Configured Centrally (18 min)
 
+> **Question it answers:** How long should each request wait, and how many times should it retry, for every source at once?
+>
+> **Other questions you can answer the same way:**
+> - How do I make the pipeline more patient with a slow API?
+
 dlt's `requests` helper, and therefore `RESTClient`, retries automatically. Its behaviour is controlled by **configuration**, not code. Add to `.dlt/config.toml`:
 
 ```toml
@@ -504,6 +545,11 @@ request_max_retry_delay = 60      # never wait longer than this between attempts
 These map to environment variables like `RUNTIME__REQUEST_MAX_ATTEMPTS`, so tests and schedulers can override them (Day 23).
 
 ### Watching retries happen
+
+> **Question it answers:** How long does the pipeline keep retrying a server that always fails before giving up?
+>
+> **Other questions you can answer the same way:**
+> - Are my retry settings reasonable for a nightly run?
 
 ```python
 import time
@@ -536,6 +582,11 @@ Retries react to overload; **throttling** prevents it. Public statistical APIs a
 
 ### A minimal throttle
 
+> **Question it answers:** How do I space out my requests so I don't overload a provider's API?
+>
+> **Other questions you can answer the same way:**
+> - How do I respect an API's rate limit?
+
 Create `macro_ingest/resilience.py` (we'll add to it all day):
 
 ```python
@@ -561,6 +612,11 @@ class Throttle:
 
 ### Batching: fewer, larger requests
 
+> **Question it answers:** How do I split 40 StatCan vectors into a few larger requests instead of 40 small ones?
+>
+> **Other questions you can answer the same way:**
+> - How many requests does a full refresh need?
+
 StatCan's vector endpoints accept **many vectors per POST**. One request for 40 vectors is far kinder, and more reliable, than 40 requests. But don't make batches enormous: if one huge request fails, everything in it fails.
 
 ```python
@@ -585,6 +641,11 @@ print(list(chunked([1, 2, 3, 4, 5], 2)))     # [[1, 2], [3, 4], [5]]
 ## 29.4 Isolation: Error Logs and Circuit Breakers (28 min)
 
 ### The error log: failures become data
+
+> **Question it answers:** Which series failed in this run, at which step and why, while the rest still loaded?
+>
+> **Other questions you can answer the same way:**
+> - Which series fail most often over the past month?
 
 Instead of letting an exception end the run, catch it **per series**, record it, and move on. Add to `resilience.py`:
 
@@ -620,6 +681,11 @@ The runner (29.7) loads `ErrorLog.records` into a `raw_dlt.extraction_errors` ta
 
 ### The circuit breaker: stop hammering a dead API
 
+> **Question it answers:** How do I stop calling an API that is clearly down after a few failures in a row?
+>
+> **Other questions you can answer the same way:**
+> - Was a failure a single bad series or a whole outage?
+
 If the first several series all fail, the API is probably down. Retrying the remaining 45 series wastes time and load. A **circuit breaker** trips after N **consecutive** failures:
 
 ```python
@@ -642,6 +708,11 @@ class CircuitBreaker:
 ```
 
 ### Putting it together in a resource
+
+> **Question it answers:** How does one resource combine per-series cursors, throttling, the circuit breaker and the error log?
+>
+> **Other questions you can answer the same way:**
+> - How do I make one bad series not stop the others?
 
 ```python
 @dlt.resource(name="boc_observations", write_disposition="merge",
@@ -696,6 +767,11 @@ for i, ok in enumerate([False, False, True, False, False, False], start=1):
 ---
 
 ## 29.5 Validating Payloads (15 min)
+
+> **Question it answers:** Even when the server answers "OK", is the content usable: right series, numeric values, sensible dates?
+>
+> **Other questions you can answer the same way:**
+> - Did the API return an empty or malformed response?
 
 HTTP 200 only means "the server answered". Before trusting the content, check it. Put the fetch-and-validate logic in **plain functions** (no dlt), so they're easy to test in 29.6.
 
@@ -760,6 +836,11 @@ What gets **skipped quietly** (individual unusable values, as since Day 2) versu
 ---
 
 ## 29.6 Testing Failures Offline with `requests-mock` (25 min)
+
+> **Question it answers:** Does my pipeline handle outages, bad statuses and broken payloads correctly, without calling the real API?
+>
+> **Other questions you can answer the same way:**
+> - Will the circuit breaker trip after three failures?
 
 You can't wait for Valet to go down to test your outage handling. **Mocking** replaces real HTTP responses with scripted ones, so tests run offline, instantly and deterministically.
 
@@ -849,6 +930,11 @@ Each test encodes one row of the 29.1 failure table. When you change the extract
 
 ## 29.7 Run Summaries and Alerts (13 min)
 
+> **Question it answers:** After each run, what loaded, what failed, and should someone be alerted?
+>
+> **Other questions you can answer the same way:**
+> - Did last night's run need attention?
+
 A resilient pipeline **reports**. After every run, `ingest.py` (Day 30) will:
 
 1. load the `ErrorLog` into `raw_dlt.extraction_errors`;
@@ -924,6 +1010,11 @@ git push
 
 ## 30.1 The Final Architecture (10 min)
 
+> **Question it answers:** How do all the ingestion pieces fit together, from each API to the warehouse?
+>
+> **Other questions you can answer the same way:**
+> - Where would I add a new data provider?
+
 ```
       Bank of Canada Valet   FRED   StatCan WDS (vectors)   StatCan full tables
                │               │            │                        │
@@ -955,6 +1046,11 @@ The Day 10 path (`run_extract.py`, `macro_extract/`, `raw.observations`, `raw.st
 
 ### `macro_ingest/clients.py`
 
+> **Question it answers:** Where are the configured clients for each provider defined?
+>
+> **Other questions you can answer the same way:**
+> - How do I change the address or headers for one provider?
+
 ```python
 """Configured REST clients, one per provider."""
 from dlt.sources.helpers.rest_client import RESTClient
@@ -974,6 +1070,11 @@ def wds_client():
 ```
 
 ### `macro_ingest/boc.py` (v2)
+
+> **Question it answers:** How does the Bank of Canada source load each series incrementally, safely and independently of the others?
+>
+> **Other questions you can answer the same way:**
+> - Why did one BoC series fail but others succeed?
 
 ```python
 """Bank of Canada Valet — resilient, incremental, isolated per series."""
@@ -1047,6 +1148,11 @@ Notes:
 
 ### `macro_ingest/statcan.py` (v2): batched, isolated, incremental
 
+> **Question it answers:** How does the StatCan source load many vectors in batches, isolating any vector that fails?
+>
+> **Other questions you can answer the same way:**
+> - Which vectors were missing from today's response?
+
 ```python
 """Statistics Canada WDS vectors — batched POSTs, per-item isolation, merge."""
 import dlt
@@ -1119,6 +1225,11 @@ The staging models (Days 18–20) need the **full** CPI and GDP tables. Loading 
 2. **Chunked loading:** read the 1M-row CSV in pieces and yield **pandas DataFrames**, which dlt loads through its fast columnar path.
 
 ### `macro_ingest/statcan_tables.py`
+
+> **Question it answers:** How do I download a full StatCan table only when it was republished, and load it in chunks?
+>
+> **Other questions you can answer the same way:**
+> - Was the CPI table updated today?
 
 ```python
 """Full StatCan tables: release-time change detection, streamed download, chunked load."""
@@ -1212,6 +1323,12 @@ If you recorded "CPI release of 2026-09-16 processed" and *then* the download fa
 ---
 
 ## 30.4 `ingest.py` v2 (20 min)
+
+> **Question it answers:** How do I run all sources (or a subset) with one command, and get a clear exit code for success, partial failure or total failure?
+>
+> **Other questions you can answer the same way:**
+> - Did today's ingestion fully succeed?
+> - How do I rerun only the StatCan source?
 
 ```python
 """ingest.py — resilient ingestion of all macro sources into DuckDB (dataset raw_dlt).
@@ -1353,6 +1470,11 @@ Temporarily add a bogus code (`"NOT_A_SERIES"`) to `[sources.boc] series_ids`. R
 
 ### Step 1 — Snapshot the marts **before** the switch
 
+> **Question it answers:** How do I save the current final tables so I can prove the new pipeline produces the same results?
+>
+> **Other questions you can answer the same way:**
+> - What did the marts look like before the migration?
+
 ```bash
 mkdir -p data/migration
 duckdb macro.duckdb -readonly -c "
@@ -1362,6 +1484,12 @@ COPY marts.policy_cycles   TO 'data/migration/before_policy_cycles.parquet'   (F
 ```
 
 ### Step 2 — A series seed replaces `raw.dim_series`
+
+> **Question it answers:** How do I record, for every series, its source, frequency, monthly aggregation rule and how stale it may get?
+>
+> **Other questions you can answer the same way:**
+> - Which series should be averaged and which taken at month-end?
+> - How old can the oil price be before it's a problem?
 
 Add to `sql/03_seeds.sql`. This turns the Day 20 stretch goal into reality: the aggregation rule lives in data, not in a `CASE`.
 
@@ -1390,6 +1518,11 @@ INSERT INTO seeds.seed_series VALUES
 `max_staleness_days` reflects each series' publication rhythm (e.g. monthly CPI appears several weeks after the month ends). Adjust the numbers to what you observe.
 
 ### Step 3 — Point staging at `raw_dlt`
+
+> **Question it answers:** How do I switch the cleaned observations table to read from the new dlt tables?
+>
+> **Other questions you can answer the same way:**
+> - Which source does each staged observation come from?
 
 **`sql/12_stg_macro__observations.sql`**
 
@@ -1453,6 +1586,11 @@ renamed AS (
 
 ### Step 4 — Find everything else that still reads the old tables
 
+> **Question it answers:** Which files still read from the old raw tables?
+>
+> **Other questions you can answer the same way:**
+> - Is anything left that depends on the old loader?
+
 ```bash
 grep -rn "raw\.observations\|raw\.statcan\|raw\.dim_series" sql/ load_warehouse.py
 ```
@@ -1464,6 +1602,12 @@ Typical hits and fixes:
 - Old tests referencing `raw.observations`: point them at `staging.stg_macro__observations` or `raw_dlt.*`.
 
 ### Step 5 — New tests
+
+> **Question it answers:** Is every loaded series described in the seed, and is any series older than its allowed staleness?
+>
+> **Other questions you can answer the same way:**
+> - Has any series stopped updating?
+> - Is a new series missing its description?
 
 ```sql
 -- sql/tests/series_without_seed.sql
@@ -1497,6 +1641,11 @@ WHERE run_started_at = (SELECT MAX(run_started_at) FROM raw_dlt.ingest_runs)
 ```
 
 ### Step 6 — Rebuild and compare with the snapshot
+
+> **Question it answers:** After switching to dlt, are the final tables identical to the snapshot taken before?
+>
+> **Other questions you can answer the same way:**
+> - Which values, if any, changed because of the migration?
 
 ```bash
 python load_warehouse.py && python run_tests.py
@@ -1532,6 +1681,11 @@ How to read the result:
 
 ### `pipeline.sh` (updated)
 
+> **Question it answers:** How do I run ingest, build and test in one go, continuing when only some sources failed?
+>
+> **Other questions you can answer the same way:**
+> - Is the warehouse up to date today?
+
 ```bash
 #!/usr/bin/env bash
 # pipeline.sh — ingest → build → test. Tolerates partial ingestion failures (exit 2).
@@ -1547,6 +1701,11 @@ echo "✓ Pipeline complete: data/marts/ is up to date"
 `cmd || [ $? -eq 2 ]` means "accept exit code 2 (partial success) and continue". A complete ingestion failure (exit 1) still stops the pipeline, and the warehouse keeps its last good data.
 
 ### `RUNBOOK.md`: what to do when things break
+
+> **Question it answers:** When something breaks, what should the person on duty check first, and what should they do?
+>
+> **Other questions you can answer the same way:**
+> - What does a "stale series" alert mean, and how do I fix it?
 
 A runbook is written for **someone else** (or you, at 7 a.m., half-awake). Create it at the repository root:
 

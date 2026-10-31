@@ -10,6 +10,12 @@
 
 ### From "what will happen" to "what would happen if…"
 
+> **Question it answers:** If the Bank of Canada raised rates, what would happen to housing starts, as opposed to what tends to happen alongside rate hikes?
+>
+> **Other questions you can answer the same way:**
+> - Does a rate hike cause housing to slow, or do hikes just happen during booms?
+> - Why can't a forecasting model answer "what if" questions?
+
 Module 7 asked **ŷ questions**: *what will inflation be next year?* Every SHAP chart came with a warning that it described the model's **associations**, not **causal effects** (Day 65.6). Module 8 asks **β̂ questions** (Day 61.1):
 
 > *If the Bank of Canada raises its policy rate by 25 basis points, by how much do housing starts change over the following months?*
@@ -172,6 +178,11 @@ Classical regression with controls assumes **g(X)** is linear. Reaction function
 
 ## 71.4 Simulation Lab: Watching Confounding Happen (25 min)
 
+> **Question it answers:** In a world where I know the true effect of rates on housing is −5, what does a naive regression estimate?
+>
+> **Other questions you can answer the same way:**
+> - How wrong can a simple correlation be when the business cycle drives both variables?
+
 The best way to understand bias is to build a world where **you know the true effect**, then see which methods recover it.
 
 Create `causal/simulate.py`:
@@ -217,6 +228,11 @@ print(f"adjusted estimate:{adjusted.params['rate_change']:+.2f}  (se {adjusted.b
 The naive estimate is typically **positive and large**: the regression "finds" that rate hikes **raise** housing starts. Controlling for the cycle recovers approximately −5.
 
 ### Why: the omitted-variable bias formula
+
+> **Question it answers:** How large is the bias from leaving out the business cycle, and can I predict it with the omitted-variable formula?
+>
+> **Other questions you can answer the same way:**
+> - In which direction does omitting the cycle bias the estimated effect?
 
 From econometrics: if the true model is Y = θD + βC + ε, and you omit C, the naive coefficient converges to
 
@@ -343,6 +359,12 @@ Not every variable correlated with both *D* and *Y* should be controlled for. Th
 
 ## 72.3 Simulating Bad Controls (23 min)
 
+> **Question it answers:** What goes wrong if I control for mortgage rates, which are themselves caused by the policy change?
+>
+> **Other questions you can answer the same way:**
+> - Should I control for house prices or 5-year yields?
+> - When does adding a control make the estimate worse?
+
 Add to `causal/simulate.py`:
 
 ```python
@@ -416,6 +438,12 @@ What you should see:
 
 ## 72.4 Timing as Identification: Controls Must Precede the Decision (20 min)
 
+> **Question it answers:** Which variables were known before the rate decision, and can therefore be used as controls?
+>
+> **Other questions you can answer the same way:**
+> - Is last month's unemployment a confounder or a mediator?
+> - Why must controls be measured before the treatment?
+
 In time series, **timing** is a powerful tool for telling confounders from mediators. A variable measured **before** the rate decision can't be caused by it. Measured **after**, it may be a mediator or post-treatment variable.
 
 **The rule:** controls must be **pre-treatment**, meaning known **before** the decision was made. You've already built exactly this logic twice:
@@ -441,6 +469,11 @@ For a monthly design:
 ---
 
 ## 72.5 Overlap and Balance in Real Canadian Data (23 min)
+
+> **Question it answers:** Were rate-hike months and no-hike months economically comparable before the decision?
+>
+> **Other questions you can answer the same way:**
+> - How different was inflation before hikes compared with other months?
 
 Now look at real data. For diagnostics, define a simple **binary** treatment: *hike month* = the overnight rate rose during the month. The main analysis (Days 74–80) uses the **continuous** change.
 
@@ -501,6 +534,11 @@ data["pscore"] = propensity_scores(data.drop(columns="hike"), data["hike"])
 ```
 
 ### Reading the diagnostics
+
+> **Question it answers:** Are hikes observed across a wide range of economic conditions, or only in very particular ones?
+>
+> **Other questions you can answer the same way:**
+> - Is there any comparable "no hike" month for each hike month?
 
 - **SMDs:** large values (e.g. inflation, the policy rate going in) confirm what the DAG predicts. Hike months happen in **different conditions**, which is exactly the confounding we must adjust for.
 - **Propensity scores:** the estimated probability of a hike given the controls. Plot their distributions for hike and non-hike months:
@@ -610,6 +648,12 @@ Only **{C}**. {} leaves the backdoor D ← C → Y open. {C, M} includes a desce
 
 ## 73.2 Code: Finding Backdoor Paths and Adjustment Sets (25 min)
 
+> **Question it answers:** Given my causal diagram, which paths create spurious correlation, and which set of controls blocks them?
+>
+> **Other questions you can answer the same way:**
+> - Is my set of controls sufficient?
+> - Which variables must I not control for?
+
 Create `causal/dag.py`, a small, transparent implementation using `networkx`:
 
 ```python
@@ -696,6 +740,12 @@ print(minimal_adjustment_sets(G, "D", "Y"))                # [('C',)]
 
 ## 73.3 A DAG for Rate Hikes and Housing Starts (28 min)
 
+> **Question it answers:** What drives Bank of Canada rate decisions and housing starts, and which variables should be controlled for when estimating the effect of rates on housing?
+>
+> **Other questions you can answer the same way:**
+> - Which confounders are unobserved?
+> - Does the diagram justify my control list?
+
 Now draw **our** DAG. Every arrow is an **assumption** you must be able to defend, and every **missing** arrow is an even stronger assumption (no direct effect).
 
 ```python
@@ -736,6 +786,11 @@ for Z in minimal_adjustment_sets(G, "D", "Y"):
 
 ### What the graph tells you
 
+> **Question it answers:** Which variables are confounders, which are mediators, and which are unobserved, according to the diagram?
+>
+> **Other questions you can answer the same way:**
+> - Why are mortgage rates excluded from the controls?
+
 1. **Mediators are excluded automatically.** Mortgage rates, 5-year yields and house prices are descendants of D, so they can never be in a valid adjustment set for the **total** effect.
 2. **Unobserved confounders may break identification.** `Sentiment` → D and → Y (via activity and directly). If it's unobserved and no observed set blocks its paths, the algorithm finds **no** valid set. That's a precise statement of the risk that **sensitivity analysis** (Days 78–80) must quantify.
 3. **Arrows you choose matter.** If you believe sentiment affects housing *only* through measured activity, delete `("Sentiment", "Y")` and re-run: identification may become possible. That's a substantive economic assumption, and it must be **written and defended**, not slipped in.
@@ -760,6 +815,12 @@ plt.axis("off"); plt.tight_layout(); plt.savefig("causal/dag.png", dpi=120)
 ---
 
 ## 73.4 Dynamics: Reaction Functions, Lagged Outcomes and Horizons (20 min)
+
+> **Question it answers:** How do I handle the fact that housing influences rate decisions and rate decisions influence future housing?
+>
+> **Other questions you can answer the same way:**
+> - Should past housing starts be a control?
+> - Which horizon should I study?
 
 Monetary policy and housing interact **over time**: rates affect housing, and housing (with the economy) affects future rates. A DAG must be acyclic, so feedback is represented by **time-indexing**:
 
@@ -818,6 +879,11 @@ Write these tests **into the design now**, before seeing the main estimates, so 
 
 ### `causal/DAG.md`
 
+> **Question it answers:** For each arrow in the causal diagram, what is the economic justification and how confident am I?
+>
+> **Other questions you can answer the same way:**
+> - Which assumptions would a referee challenge first?
+
 Document the graph like a data contract: one row per **edge** (and per notable **missing** edge), with justification.
 
 ```markdown
@@ -847,6 +913,11 @@ Sentiment, supply constraints, population growth (candidate data addition).
 ```
 
 ### `causal/design_spec.yml`
+
+> **Question it answers:** Exactly what is the treatment, the outcome, the controls, the sample and the assumptions of the study?
+>
+> **Other questions you can answer the same way:**
+> - What exactly does "the effect of a 1-point hike" mean in this study?
 
 Translate the DAG into a **reviewed specification**, the causal counterpart of Day 68's feature spec. Days 74–80 implement exactly this, nothing more and nothing less:
 
@@ -903,6 +974,11 @@ robustness:          # pre-registered before seeing results
 ```
 
 ### Optional: cross-check with DoWhy
+
+> **Question it answers:** Does an established causal-inference library agree with my adjustment set?
+>
+> **Other questions you can answer the same way:**
+> - Did I find the backdoor paths correctly?
 
 ```python
 import networkx as nx

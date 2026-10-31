@@ -84,6 +84,11 @@ An **expectation suite** is a named collection of expectations validated togethe
 
 ### Three design principles
 
+> **Question it answers:** How should I split rules into suites, so that a definitional error stops the pipeline but an unusual value only warns?
+>
+> **Other questions you can answer the same way:**
+> - Which unemployment checks are critical, and which are only warnings?
+
 **1. One asset per suite.** A suite describes one kind of data. Don't mix CPI and exchange-rate expectations; they fail for different reasons and have different owners.
 
 **2. Split by severity.** A run should be able to answer "may we publish?" (critical) separately from "should someone take a look?" (warning). The simplest robust way is **two suites per asset**:
@@ -129,6 +134,11 @@ Why YAML specs?
 It's the same idea as dbt's YAML tests (Day 36) and dlt's `config.toml` (Day 23): **configuration as data, reviewed like code.**
 
 ### A spec file
+
+> **Question it answers:** How do I write the unemployment-rate rules in a readable file that economists can review?
+>
+> **Other questions you can answer the same way:**
+> - What exactly do we check on the unemployment series, and why?
 
 Create `quality/specs/unemployment_rate.yml`:
 
@@ -184,6 +194,11 @@ The `warning` range above is a **placeholder**. On Day 45 you'll replace it with
 ---
 
 ## 44.3 A Suite Builder That Regenerates Deterministically (28 min)
+
+> **Question it answers:** How do I turn every reviewed spec file into GX suites automatically, the same way every time?
+>
+> **Other questions you can answer the same way:**
+> - Do the stored suites match the reviewed specs exactly?
 
 Create `quality/build_suites.py`. On each run it:
 
@@ -282,6 +297,11 @@ Write specs for the assets registered on Day 43. Here are two complete examples,
 
 ### `quality/specs/macro_monthly.yml`: a mart consumers read
 
+> **Question it answers:** Does the monthly mart have exactly the agreed columns, unique months and plausible values?
+>
+> **Other questions you can answer the same way:**
+> - Can dashboard users trust the monthly table today?
+
 ```yaml
 asset: macro_monthly
 batch_definition: full
@@ -329,6 +349,11 @@ warning:
 ```
 
 ### `quality/specs/cpi_vector_vs_table_mismatches.yml`: the consistency check
+
+> **Question it answers:** Are there zero months where the two CPI sources disagree?
+>
+> **Other questions you can answer the same way:**
+> - Do two sources for the same statistic agree?
 
 ```yaml
 asset: cpi_vector_vs_table_mismatches
@@ -392,6 +417,11 @@ Q05 is **also** a dbt test (Day 36). Duplicating it in GX is justified here beca
 
 ## 44.5 Reading Suite Results Programmatically (20 min)
 
+> **Question it answers:** How many checks passed or failed, and which ones failed with how many bad rows?
+>
+> **Other questions you can answer the same way:**
+> - Which check failed in today's run, and on which column?
+
 Validating a whole suite returns an **`ExpectationSuiteValidationResult`**. Knowing its structure lets you build reports, alerts and history.
 
 Create `quality/day44_inspect_results.py`:
@@ -428,6 +458,11 @@ for r in res.results:                          # one ExpectationValidationResult
 
 ### Grouping by quality dimension
 
+> **Question it answers:** How is data quality doing on each dimension: completeness, validity, consistency, timeliness?
+>
+> **Other questions you can answer the same way:**
+> - Is our main problem missing data or implausible values?
+
 Because every expectation carries `meta.dimension`, you can report quality the way the Day 41 plan thinks about it:
 
 ```python
@@ -446,6 +481,11 @@ for dim in sorted(by_dim):
 ---
 
 ## 44.6 Mini-Project: Every Plan Check in a Spec (20 min)
+
+> **Question it answers:** Is every check promised in the quality plan actually written in a spec?
+>
+> **Other questions you can answer the same way:**
+> - Which planned checks are still missing?
 
 1. Write specs for all assets in the table in 44.4, so that **every** GX-assigned check in `DATA_QUALITY_PLAN.md` appears in exactly one spec with its plan ID.
 2. Run `python quality/build_suites.py` and confirm one suite per asset and severity.
@@ -529,6 +569,12 @@ Older versions of GX shipped automatic profilers ("Data Assistants"). GX 1.x Cor
 
 ## 45.2 Fast Profiles with DuckDB `SUMMARIZE` (23 min)
 
+> **Question it answers:** What do the main tables look like column by column: minimums, maximums, averages, missing values and distinct counts?
+>
+> **Other questions you can answer the same way:**
+> - What is a normal range for each indicator?
+> - Which columns have missing values?
+
 Recall Day 13: `SUMMARIZE` computes a profile of every column in one statement. Quality scripts always open the warehouse **read-only**.
 
 Create `quality/day45_profile_basics.py`:
@@ -555,6 +601,12 @@ Read the output column by column and note anything surprising:
 - **`approx_unique`** vs **`count`**: is `month` unique (as it must be)?
 
 ### Quantiles beyond the quartiles
+
+> **Question it answers:** What are the extreme low and high values (0.1% and 99.9%) of unemployment and inflation?
+>
+> **Other questions you can answer the same way:**
+> - How rare is today's reading?
+> - Where should a warning threshold be set?
 
 `SUMMARIZE` gives quartiles. For thresholds we need the **tails**:
 
@@ -597,6 +649,11 @@ Low-cardinality columns (`uom`, `status`, `terminated`, `scalar_factor`, `geo`) 
 Now automate the step from profile to **draft** expectations, written as a YAML spec in `specs/drafts/` for human review.
 
 ### The drafting rules
+
+> **Question it answers:** How can I draft starting-point rules automatically from the data's history, then review them by hand?
+>
+> **Other questions you can answer the same way:**
+> - What draft ranges does history suggest for each column?
 
 | Observed in the profile | Drafted expectation | Severity |
 |---|---|---|
@@ -733,6 +790,11 @@ Day 41's Story 5 (an unemployment jump from 6.4% to 16.4%) passes every **level*
 
 ### A query asset of changes
 
+> **Question it answers:** What was the month-to-month change in the unemployment rate, as a table GX can check?
+>
+> **Other questions you can answer the same way:**
+> - How do I check changes rather than levels?
+
 Add to `QUERY_ASSETS` in `quality/setup_gx.py`:
 
 ```python
@@ -748,6 +810,12 @@ Add to `QUERY_ASSETS` in `quality/setup_gx.py`:
 and give it a monthly batch definition on `obs_date` (in `MONTHLY_PARTITIONS`). Re-run `python quality/setup_gx.py`.
 
 ### Profile the changes
+
+> **Question it answers:** How large are typical and extreme monthly changes in unemployment?
+>
+> **Other questions you can answer the same way:**
+> - Is a 0.6-point jump unusual?
+> - How often do moves larger than 1 point occur?
 
 ```python
 with duckdb.connect(DB, read_only=True) as con:
@@ -768,6 +836,11 @@ with duckdb.connect(DB, read_only=True) as con:
 ```
 
 ### The spec, with a deliberate two-level design
+
+> **Question it answers:** How do I warn on unusual unemployment changes but fail only on impossible ones?
+>
+> **Other questions you can answer the same way:**
+> - Should a pandemic-size jump stop the pipeline or just be reviewed?
 
 `quality/specs/unemployment_rate_changes.yml`:
 
@@ -824,6 +897,12 @@ Row-level ranges miss errors that shift the **whole distribution**. Aggregate ex
 
 ### Example: a quantile fingerprint for USD/CAD daily returns
 
+> **Question it answers:** Do the daily dollar returns still have their usual shape (typical small moves, normal tails)?
+>
+> **Other questions you can answer the same way:**
+> - Did a units change make returns 100 times larger?
+> - Has volatility changed dramatically?
+
 ```yaml
   - type: ExpectColumnQuantileValuesToBeBetween
     kwargs:
@@ -842,6 +921,11 @@ Row-level ranges miss errors that shift the **whole distribution**. Aggregate ex
 (Replace the numbers with those from your own profile: `quantile_cont(usd_cad_logret, [0.05, 0.5, 0.95])`.)
 
 ### Example: detecting a "stuck" series
+
+> **Question it answers:** Has the exchange rate taken enough different values recently, or is it stuck at one value?
+>
+> **Other questions you can answer the same way:**
+> - Did ingestion accidentally repeat the same value for weeks?
 
 If ingestion accidentally forward-fills one value for months, the **number of distinct values** in a recent window collapses. A query asset of the last 60 business days plus:
 
@@ -896,6 +980,12 @@ print("mean   :", batch.validate(E.ExpectColumnMeanToBeBetween(
 
 ## 45.6 Mini-Project: Review Drafts into Final Specs (23 min)
 
+> **Question it answers:** Which drafted rules should be kept, changed or removed, and what is the economic reason for each decision?
+>
+> **Other questions you can answer the same way:**
+> - Why was the inflation range widened?
+> - Who reviewed each rule, and when?
+
 1. Profile every GX asset: `python quality/profile_assets.py asset=schema.table ...` for the table assets (for query assets, profile the underlying query in DuckDB by hand, as in 45.4).
 2. For each draft, create or update the **final** spec in `specs/` by:
    - **keeping** items that match a plan check, and assigning the real plan ID;
@@ -946,6 +1036,11 @@ git add quality/ && git commit -m "Day 45: profiling, draft expectations, review
 
 ## 46.1 Validation Definitions (23 min)
 
+> **Question it answers:** How do I save "this suite on this data" as a named validation I can run again?
+>
+> **Other questions you can answer the same way:**
+> - Which data does each suite check?
+
 So far you've validated by fetching a batch and calling `batch.validate(suite)` yourself. A **validation definition** saves that pairing (*this data* + *this suite*) as a named, reusable object in the project.
 
 ```python
@@ -983,6 +1078,11 @@ context.validation_definitions.get("stg_statcan__cpi__critical__by_month").run(
 
 ## 46.2 Checkpoints and Actions (28 min)
 
+> **Question it answers:** How do I run a group of validations together and then act on the result (update docs, send alerts)?
+>
+> **Other questions you can answer the same way:**
+> - What happens automatically after a quality run?
+
 A **checkpoint** runs one or more validation definitions **and then does something with the results**, through **actions**.
 
 ```
@@ -995,6 +1095,11 @@ Checkpoint "critical"
 ```
 
 ### Creating checkpoints
+
+> **Question it answers:** How do I create one checkpoint for all critical checks and one for all warnings?
+>
+> **Other questions you can answer the same way:**
+> - Which validations belong to the critical checkpoint?
 
 ```python
 import great_expectations as gx
@@ -1031,6 +1136,11 @@ This turns the severity column of your Day 41 plan into **pipeline behaviour**.
 ---
 
 ## 46.3 Extending the Builder (28 min)
+
+> **Question it answers:** How do I regenerate suites, validations and checkpoints together from the specs, in the right order?
+>
+> **Other questions you can answer the same way:**
+> - Why does deleting a suite fail when a checkpoint still uses it?
 
 Upgrade `quality/build_suites.py` so that one command regenerates **everything** from the specs, in a safe order:
 
@@ -1104,6 +1214,11 @@ Everything GX runs is now **derived from the specs**. Changing a threshold means
 
 ## 46.4 Running Checkpoints and Interpreting Results (20 min)
 
+> **Question it answers:** Did the critical checkpoint pass, and for each suite, how many checks passed or failed?
+>
+> **Other questions you can answer the same way:**
+> - Which tables failed today, and how badly?
+
 ```python
 from gx_helpers import get_context
 
@@ -1134,6 +1249,11 @@ Temporarily edit `specs/fct_open_economy_daily.yml` so that one critical expecta
 
 ## 46.5 Notifications (15 min)
 
+> **Question it answers:** How do I get a Slack or Teams message only when a check fails?
+>
+> **Other questions you can answer the same way:**
+> - Who should be alerted, and with how much detail?
+
 GX includes notification actions (for example `SlackNotificationAction` and `MicrosoftTeamsNotificationAction`) that post a summary when a checkpoint fails:
 
 ```python
@@ -1154,6 +1274,11 @@ Add it to a checkpoint's `actions` list. Never write the webhook URL itself into
 ---
 
 ## 46.6 Mini-Project: `run_checkpoints.py` with Exit Codes (23 min)
+
+> **Question it answers:** Did today's quality run pass, warn or fail, expressed as an exit code the pipeline can act on?
+>
+> **Other questions you can answer the same way:**
+> - Should the marts be published today?
 
 Create `quality/run_checkpoints.py`:
 
@@ -1280,6 +1405,11 @@ git add quality/ && git commit -m "Day 46: validation definitions, checkpoints, 
 
 ## 47.1 Building and Browsing Data Docs (25 min)
 
+> **Question it answers:** Where can I browse all the quality rules and the latest results as a website?
+>
+> **Other questions you can answer the same way:**
+> - What did the last validation of macro_monthly show?
+
 **Data Docs** is a static website that GX generates from your suites and validation results. Your checkpoints already rebuild it via `UpdateDataDocsAction`. You can also build it directly:
 
 ```python
@@ -1313,6 +1443,11 @@ Open a failed run (from Try it 46.4, if you kept it) and follow a failure from t
 
 ## 47.2 Making Data Docs Readable for Economists (23 min)
 
+> **Question it answers:** How do I explain, next to each rule, why it exists in economic terms?
+>
+> **Other questions you can answer the same way:**
+> - Why must the unemployment rate be between 0 and 100?
+
 Data Docs renders expectations as sentences (*"values must be between 0 and 100"*). Three things make them genuinely useful to non-engineers.
 
 **1. Descriptive names.** `unemployment_rate__critical` reads better than `suite_3`. The naming convention from Day 44 already pays off here.
@@ -1339,6 +1474,11 @@ Data Docs renders expectations as sentences (*"values must be between 0 and 100"
 
 ### A suite-level description
 
+> **Question it answers:** How do I describe what each suite protects and who owns it?
+>
+> **Other questions you can answer the same way:**
+> - Who should I contact about a failing suite?
+
 Suites can carry `meta` too. Give `rebuild_suite` a `description` argument and pass `spec.get("description", "")` from `main()`, so each suite page opens with a sentence explaining its purpose:
 
 ```python
@@ -1360,6 +1500,11 @@ and add a `description:` line to each spec, e.g. *"Monthly unemployment rate as 
 ---
 
 ## 47.3 A Queryable Validation History (25 min)
+
+> **Question it answers:** How do I keep every check's result from every run as a table I can analyse?
+>
+> **Other questions you can answer the same way:**
+> - When did this check last fail?
 
 Data Docs shows runs one by one. Economists and managers also ask **trend** questions: *Which checks fail most often? Are warnings increasing since StatCan changed its release schedule? Did quality improve after the Day 30 migration?* For that we need validation results **as data**.
 
@@ -1421,6 +1566,12 @@ Run the checkpoints a few times (break and restore a spec in between) to create 
 
 ## 47.4 Trends: Is Data Quality Getting Better or Worse? (20 min)
 
+> **Question it answers:** Day by day, how many checks ran, how many failed, and what share passed?
+>
+> **Other questions you can answer the same way:**
+> - Is quality improving this month?
+> - Was there a bad day last week?
+
 Query the history directly with DuckDB (from either environment):
 
 ```bash
@@ -1437,6 +1588,11 @@ order by day desc, checkpoint"
 
 ### Which checks fail most often?
 
+> **Question it answers:** Which checks fail most often, on which tables, and when did each last fail?
+>
+> **Other questions you can answer the same way:**
+> - Which rule needs attention or a better threshold?
+
 ```sql
 select plan_id, asset, expectation_type, column_name,
        count(*)                             as runs,
@@ -1450,6 +1606,12 @@ order by failed_runs desc;
 
 ### Quality by dimension over time
 
+> **Question it answers:** Week by week, what share of checks passed in each quality dimension?
+>
+> **Other questions you can answer the same way:**
+> - Is timeliness getting worse?
+> - Are validity problems fixed?
+
 ```sql
 select dimension,
        date_trunc('week', run_time)          as week,
@@ -1460,6 +1622,11 @@ order by week desc, dimension;
 ```
 
 ### Into the warehouse with dbt (a preview of integration)
+
+> **Question it answers:** How do I make the quality history available as a table in the warehouse, alongside the data?
+>
+> **Other questions you can answer the same way:**
+> - Can a dashboard show data quality next to the numbers?
 
 Because the history is Parquet, dbt-duckdb can read it as a **source**, putting quality results on the lineage graph and in the marts. In `macro_dbt/models/staging/quality/_quality__sources.yml`:
 
@@ -1484,6 +1651,11 @@ Then `models/staging/quality/stg_quality__gx_results.sql` can `select * from {{ 
 ## 47.5 Connecting Data Docs, dbt Docs and the Pipeline (15 min)
 
 ### Cross-link the two documentation sites
+
+> **Question it answers:** How do readers of the model documentation find the data-quality results?
+>
+> **Other questions you can answer the same way:**
+> - Where are the quality results for this mart?
 
 Readers of dbt docs (Day 40) should know quality results exist. Add to the `__overview__` doc block in `macro_dbt/models/docs.md`:
 
@@ -1512,6 +1684,11 @@ And declare Data Docs as an **exposure** consuming the validated models, so the 
 
 ### Where quality runs in the pipeline
 
+> **Question it answers:** Where do quality checks sit in the pipeline, and what happens after a pass, a warning or a failure?
+>
+> **Other questions you can answer the same way:**
+> - Should bad data ever reach the dashboards?
+
 ```
 ingest.py (dlt)  →  dbt build --target prod  →  run_checkpoints.py (GX)  →  publish / alert
                                                    │
@@ -1527,6 +1704,11 @@ On Days 48–50 we'll refine this so that GX validates **incoming StatCan data b
 ## 47.6 Capstone: `run_quality.sh` and a Guided Review (28 min)
 
 ### One command for the quality layer
+
+> **Question it answers:** How do I rebuild all quality objects, run the checks and refresh Data Docs with one command?
+>
+> **Other questions you can answer the same way:**
+> - Is the quality layer working end to end?
 
 Create `quality/run_quality.sh`:
 
@@ -1560,6 +1742,11 @@ Notes:
 - `${MACRO_DUCKDB_URL:-...}` uses the existing variable if set, and otherwise a default. That's shell syntax for "value or default".
 
 ### Hook it into the main pipeline
+
+> **Question it answers:** How do I stop the pipeline from publishing when a critical quality check fails?
+>
+> **Other questions you can answer the same way:**
+> - Did today's run finish with warnings that need review?
 
 Add to the end of `pipeline.sh` (Day 40), after the dbt build:
 

@@ -44,6 +44,12 @@ There's one remaining weakness: **a bad StatCan release lands in `raw_dlt` befor
 
 ## 48.1 Why Validate at the Boundary: Write–Audit–Publish (20 min)
 
+> **Question it answers:** What happens if StatCan publishes a faulty table and it flows straight into the dashboards?
+>
+> **Other questions you can answer the same way:**
+> - How quickly could a bad release reach decision-makers?
+> - Where should checks happen to prevent it?
+
 Imagine StatCan publishes an LFS table in which, due to a processing error, one province's unemployment rate is `64.0` instead of `6.4`. With today's pipeline:
 
 ```
@@ -54,6 +60,12 @@ StatCan ──► raw_dlt (replaced!) ──► dbt rebuilds 20 models ──►
 The last *good* LFS data is gone from `raw_dlt` (the table was replaced), and every dependent model now contains the error.
 
 ### The Write–Audit–Publish (WAP) pattern
+
+> **Question it answers:** How do I check a new release before it replaces the data everyone is using, and quarantine it if it fails?
+>
+> **Other questions you can answer the same way:**
+> - Which release is production using right now?
+> - Where do rejected releases go?
 
 WAP is a widely used data-engineering pattern for exactly this problem:
 
@@ -101,6 +113,11 @@ The table is large (the notebook reports over five million rows) because it cros
 
 ### Configuration
 
+> **Question it answers:** Which full StatCan tables (CPI, GDP and now the Labour Force Survey) should go through the safety gate?
+>
+> **Other questions you can answer the same way:**
+> - How do I add another StatCan table to the audited list?
+
 In `.dlt/config.toml`, extend the full-table list from Day 30:
 
 ```toml
@@ -109,6 +126,11 @@ tables = { "18100004" = "statcan_cpi_full", "36100104" = "statcan_gdp_full", "14
 ```
 
 ### Take full tables out of the direct path
+
+> **Question it answers:** How do I keep loading API series directly while sending full tables through the audit?
+>
+> **Other questions you can answer the same way:**
+> - Which data still bypasses the gate?
 
 From today, full tables go through WAP. `ingest.py` keeps loading API series (BoC, FRED, StatCan vectors) directly, but skips `statcan_tables`:
 
@@ -121,6 +143,11 @@ We'll update `pipeline.sh` accordingly on Day 50.
 ---
 
 ## 48.3 The *Write* Step: Loading into `raw_incoming` (25 min)
+
+> **Question it answers:** How do I load a changed StatCan table into a holding area without touching production?
+>
+> **Other questions you can answer the same way:**
+> - Which tables changed since the last release?
 
 Create `ingest_statcan_tables.py` at the repository root (runs in `.venv`). Today it only **writes**; Day 50 adds audit and publish.
 
@@ -202,6 +229,12 @@ duckdb macro.duckdb -readonly -c "select table_name from information_schema.tabl
 
 ## 48.4 Profiling the Raw LFS Table (23 min)
 
+> **Question it answers:** What does the raw Labour Force Survey table contain: dimensions, members, status codes, dates and row counts?
+>
+> **Other questions you can answer the same way:**
+> - Which provinces, age groups and characteristics are available?
+> - Which status codes appear with missing values?
+
 Profile before writing any contract (Day 45). Everything in `raw_incoming` is **text** (Day 18's raw-layer rule).
 
 ```bash
@@ -265,6 +298,11 @@ Small cells (e.g. a youth group in Prince Edward Island) have labour forces of o
 ---
 
 ## 48.5 The Boundary Contract Spec (20 min)
+
+> **Question it answers:** Did StatCan deliver a well-formed LFS table: the expected columns, dimensions, members and date format?
+>
+> **Other questions you can answer the same way:**
+> - Did StatCan rename a column or add a new category?
 
 The boundary contract asks: **did StatCan deliver a well-formed table of the kind we expect?** It checks structure, formats and keys, not economics yet.
 
@@ -340,6 +378,11 @@ warning:
 
 ### Register the incoming asset
 
+> **Question it answers:** How do I tell GX about the tables in the holding area?
+>
+> **Other questions you can answer the same way:**
+> - Which incoming tables are checked?
+
 Add to `quality/setup_gx.py` (Day 43):
 
 ```python
@@ -354,6 +397,11 @@ TABLE_ASSETS += INCOMING_TABLES
 > **First-time order matters.** GX checks that a table exists when registering it. That's why `raw_incoming` was loaded in 48.3 *before* running setup. On later runs the tables always exist, because WAP keeps the last incoming copy in place.
 
 ### Group checkpoints by purpose
+
+> **Question it answers:** How do I run the incoming-data checks separately from the warehouse checks?
+>
+> **Other questions you can answer the same way:**
+> - Which checks protect the boundary, and which protect the marts?
 
 Until now, all suites fed two checkpoints: `critical` and `warning` (Day 46). Incoming-data suites must run **separately**, per table, at audit time. Add an optional `checkpoint_group` to specs, and let the builder name checkpoints `<group>_<severity>`:
 
@@ -392,6 +440,11 @@ and in `main()`, key the collected validation definitions by `(group, severity)`
 Existing specs have no `checkpoint_group`, so the warehouse checkpoints keep their names (`critical`, `warning`). The LFS boundary spec produces `incoming_lfs_critical` and `incoming_lfs_warning`.
 
 ### A first `validate_incoming.py`
+
+> **Question it answers:** Does the incoming LFS release pass its boundary checks, with an exit code the loader can act on?
+>
+> **Other questions you can answer the same way:**
+> - Can this release be published?
 
 Create `quality/validate_incoming.py` (runs in `.venv-gx`). It reuses the Day 46–47 functions:
 
@@ -499,6 +552,11 @@ The curriculum's rule sounds simple, but turning it into a check forces precise 
 
 ### The query asset
 
+> **Question it answers:** What are the unemployment, participation and employment rates in the incoming release, as numbers GX can check?
+>
+> **Other questions you can answer the same way:**
+> - Are all rates between 0 and 100%?
+
 ```python
 "incoming_lfs_rates": """
     select ref_date, geo, gender, age_group, data_type,
@@ -524,6 +582,11 @@ The curriculum's rule sounds simple, but turning it into a check forces precise 
 ```
 
 ### The spec: `quality/specs/incoming/lfs_rates.yml`
+
+> **Question it answers:** Are all labour-market rates in the new release between 0% and 100%?
+>
+> **Other questions you can answer the same way:**
+> - Did a processing error give a province an impossible rate?
 
 ```yaml
 description: "Labour-market rates in the incoming LFS release. The curriculum's 0–100% contract."
@@ -565,6 +628,11 @@ And two short specs, `lfs_parseable.yml` (critical: `ExpectTableRowCountToEqual:
 
 ### Suppression rule (completeness)
 
+> **Question it answers:** Is every missing value explained by a StatCan status code (suppressed, too unreliable, etc.)?
+>
+> **Other questions you can answer the same way:**
+> - Are there unexplained blanks in the release?
+
 Missing values must be explained by a status code. From your profile, list the codes that accompany missing values (for example `..` or `x`):
 
 ```python
@@ -595,6 +663,11 @@ We check **three** aspects of continuity.
 
 ### (a) No internal gaps per series
 
+> **Question it answers:** Does any active LFS series skip a month between its first and last dates?
+>
+> **Other questions you can answer the same way:**
+> - Is any series missing a month in the middle?
+
 The counting trick from Day 18: if a series spans *N* months from first to last, it must have exactly *N* distinct months.
 
 ```python
@@ -617,6 +690,11 @@ The counting trick from Day 18: if a series spans *N* months from first to last,
 
 ### (b) Release completeness: every active series reaches the latest month
 
+> **Question it answers:** Do all active series include the newest month, or did some stop early?
+>
+> **Other questions you can answer the same way:**
+> - Is this release complete, or partially delivered?
+
 A release where *most* series end in the newest month but some stop a month earlier is incomplete, even if no series has an internal gap.
 
 ```python
@@ -638,6 +716,12 @@ A release where *most* series end in the newest month but some stop a month earl
 
 ### (c) No future periods, and a fresh latest period
 
+> **Question it answers:** Is the latest month in the release recent, and are there no months from the future?
+>
+> **Other questions you can answer the same way:**
+> - Is this release stale?
+> - Did a date error create future periods?
+
 ```python
 "incoming_lfs_period_bounds": """
     select max(cast(ref_date || '-01' as date))                       as latest_month,
@@ -648,6 +732,11 @@ A release where *most* series end in the newest month but some stop a month earl
 ```
 
 ### The spec: `quality/specs/incoming/lfs_continuity.yml` (three assets, three small specs)
+
+> **Question it answers:** How do I turn the gap, completeness and freshness checks into reviewed rules?
+>
+> **Other questions you can answer the same way:**
+> - Which continuity rule failed for this release?
 
 ```yaml
 # lfs_continuity_gaps.yml
@@ -731,6 +820,11 @@ Published values are **rounded** (counts to 0.1 thousand, rates to 0.1pp), so re
 
 ### The query asset
 
+> **Question it answers:** Do the LFS accounting identities hold: employed plus unemployed equals the labour force, and the rates match the levels?
+>
+> **Other questions you can answer the same way:**
+> - Is the unemployment rate consistent with unemployed divided by labour force?
+
 ```python
 "incoming_lfs_identities": """
     with e as (
@@ -763,6 +857,11 @@ Published values are **rounded** (counts to 0.1 thousand, rates to 0.1pp), so re
 This is the conditional-aggregation pivot from Day 14, applied to raw text on the fly.
 
 ### The spec: `quality/specs/incoming/lfs_identities.yml`
+
+> **Question it answers:** Do the identities hold within rounding tolerance for every month and province?
+>
+> **Other questions you can answer the same way:**
+> - How large is the largest identity error, and where?
 
 ```yaml
 description: "Accounting identities linking LFS characteristics, with rounding-aware tolerances."
@@ -803,6 +902,11 @@ Profile the error columns first (`quantile_cont(abs(ur_error_pp), [0.5, 0.99, 0.
 
 ### Cross-source: the vector we ingest vs the full table
 
+> **Question it answers:** Does the national unemployment rate in the full table match the vector we load from the API?
+>
+> **Other questions you can answer the same way:**
+> - Do two StatCan products agree on the same number?
+
 Since Day 10 we've fetched the national unemployment rate as **vector v2062815**, and on Day 10 you verified its title by hand. The full LFS table contains the same vector, so we can check that the two paths agree **and** that the vector belongs to this table.
 
 ```python
@@ -826,6 +930,12 @@ Spec (`lfs_vector_check.yml`):
 (As on Day 41, a newer month in one source than the other isn't a disagreement: the inner join only compares months present in both.)
 
 ### Cross-release: how much did this release revise?
+
+> **Question it answers:** How much did this release revise previously published unemployment rates, and are the revisions unusually large?
+>
+> **Other questions you can answer the same way:**
+> - Is this January's seasonal revision normal?
+> - Which provinces were revised the most?
 
 StatCan revises LFS estimates, and seasonally adjusted series are typically revised each **January** for recent years. Compare the incoming release with the **currently published** one:
 
@@ -860,6 +970,12 @@ Spec: **warning** `ExpectTableRowCountToEqual(value=0)` (plan L32), with a ratio
 ---
 
 ## 49.5 Diagnostic Analyses: from Red Cross to Explanation (18 min)
+
+> **Question it answers:** When a check fails, exactly which series, months and provinces are affected?
+>
+> **Other questions you can answer the same way:**
+> - Which months are missing in which series?
+> - Where is the identity broken?
 
 A failing expectation says *that* something is wrong; the person on call needs to know *where* and *why*. Keep diagnostic queries next to the specs, in `quality/diagnostics/`, one per critical check.
 
@@ -914,6 +1030,11 @@ Reference each diagnostic in its spec's `notes`, so Data Docs tells the reader *
 
 ## 49.6 Mini-Project: The Complete LFS Contract (20 min)
 
+> **Question it answers:** Does the incoming LFS release pass every structural, validity, completeness, consistency and revision check?
+>
+> **Other questions you can answer the same way:**
+> - What does a full audit report look like for one release?
+
 1. Add every query asset from today to `quality/setup_gx.py` (except `incoming_lfs_revisions`, which comes after the first publish).
 2. Write all specs in `quality/specs/incoming/` with `checkpoint_group: incoming_lfs`, calibrated to your profile.
 3. Add the checks to `DATA_QUALITY_PLAN.md` (IDs B01–B07, L01–L32), each with dimension, severity and owner.
@@ -958,6 +1079,11 @@ git add quality/ && git commit -m "Day 49: LFS contract — rates, continuity, i
 ---
 
 ## 50.1 Completing WAP (28 min)
+
+> **Question it answers:** How do I publish a release only after it passes the audit, and quarantine it otherwise?
+>
+> **Other questions you can answer the same way:**
+> - Which release is in production, and which are in quarantine?
 
 Two design decisions shape the final orchestrator.
 
@@ -1057,6 +1183,11 @@ def main():
 
 ### First publish
 
+> **Question it answers:** Does the first release pass the audit and get recorded in the release log?
+>
+> **Other questions you can answer the same way:**
+> - When was each table last published, and did it pass?
+
 ```bash
 source .venv/bin/activate
 python ingest_statcan_tables.py --full-refresh; echo "exit: $?"
@@ -1068,6 +1199,11 @@ Now that `raw_dlt.statcan_lfs_full` exists, register the **revisions** asset (49
 ---
 
 ## 50.2 Fault Injection: Prove the Gate Works (25 min)
+
+> **Question it answers:** If I deliberately break the incoming data, does the audit catch each kind of fault?
+>
+> **Other questions you can answer the same way:**
+> - Would an impossible rate, a missing month or a renamed column be stopped?
 
 A safety gate you haven't seen close is a hope, not a gate. Following Day 29's habit, **inject faults deliberately**, only into `raw_incoming`, and confirm the audit catches each one.
 
@@ -1128,6 +1264,11 @@ if __name__ == "__main__":
 
 ### The test protocol
 
+> **Question it answers:** For each injected fault, does the audit fail with the right exit code and the right rule ID?
+>
+> **Other questions you can answer the same way:**
+> - Is any fault type slipping through?
+
 For each scenario:
 
 ```bash
@@ -1167,6 +1308,11 @@ Confirm that `raw_dlt.statcan_lfs_full` is **unchanged**, a quarantine table exi
 Now the warehouse can build on the audited LFS table.
 
 ### Source and staging
+
+> **Question it answers:** How do I make the audited LFS table available to dbt?
+>
+> **Other questions you can answer the same way:**
+> - Which LFS table do the models read: production or incoming?
 
 Add to `macro_dbt/models/staging/statcan/_statcan__sources.yml`:
 
@@ -1213,6 +1359,12 @@ left join {{ ref('seed_geo') }} as g using (geo)
 
 ### Intermediate: the headline labour-market panel
 
+> **Question it answers:** Each month, what are the seasonally adjusted unemployment, participation and employment rates for Canada and each province?
+>
+> **Other questions you can answer the same way:**
+> - What was Alberta's participation rate last month?
+> - Which province has the lowest employment rate?
+
 `macro_dbt/models/intermediate/labour/int_lfs__headline.sql`:
 
 ```sql
@@ -1239,6 +1391,12 @@ group by all
 (Use the exact member names from your profile notes.)
 
 ### Mart: provincial labour markets
+
+> **Question it answers:** How does each province's unemployment compare with the national rate, and how has it changed over the year?
+>
+> **Other questions you can answer the same way:**
+> - Which provinces are above the national rate?
+> - Where is unemployment rising fastest?
 
 `macro_dbt/models/marts/labour/lfs_provincial_monthly.sql`:
 
@@ -1309,6 +1467,11 @@ dbt build --target prod --select +lfs_provincial_monthly
 
 ## 50.4 Data Quality as a Warehouse KPI (18 min)
 
+> **Question it answers:** What share of quality checks passed on each run, as a table dashboards can show?
+>
+> **Other questions you can answer the same way:**
+> - Is data quality a KPI we can track over time?
+
 On Day 47 you previewed reading the GX history into dbt. Let's finish it, so that data quality appears in the **macro cockpit** next to the economic KPIs.
 
 `macro_dbt/models/staging/quality/_quality__sources.yml` (from Day 47), then `stg_quality__gx_results.sql`:
@@ -1363,6 +1526,11 @@ Add a KPI to `macro_kpis` (Day 39): a union branch with pillar `P0 Data quality`
 
 ### `pipeline.sh`: the complete flow after Module 5
 
+> **Question it answers:** How does the full pipeline run: API loads, audited StatCan tables, dbt, warehouse quality and docs?
+>
+> **Other questions you can answer the same way:**
+> - Where in the flow does a bad release get stopped?
+
 ```bash
 #!/usr/bin/env bash
 # pipeline.sh — APIs → WAP StatCan tables → dbt → warehouse quality → docs
@@ -1414,6 +1582,11 @@ StatCan full tables ────────────► ingest_statcan_table
 
 ### Runbook additions
 
+> **Question it answers:** When a StatCan release is quarantined, what should the person on duty do, step by step?
+>
+> **Other questions you can answer the same way:**
+> - How do I decide whether it's a StatCan error or a legitimate change?
+
 Append to `RUNBOOK.md` (Day 30):
 
 ```markdown
@@ -1435,6 +1608,11 @@ Run every scenario in quality/chaos_incoming.py against raw_incoming and update 
 ```
 
 ### Final check
+
+> **Question it answers:** Does the complete pipeline run end to end and finish with a success code?
+>
+> **Other questions you can answer the same way:**
+> - Is everything ready for Module 6?
 
 ```bash
 ./pipeline.sh; echo "exit: $?"

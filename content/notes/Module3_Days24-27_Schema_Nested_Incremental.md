@@ -20,6 +20,11 @@
 
 ### Practice setup
 
+> **Question it answers:** How do I experiment with pipelines safely, without touching my real warehouse?
+>
+> **Other questions you can answer the same way:**
+> - How do I reset a test pipeline and start clean?
+
 Each day uses a **practice pipeline** so experiments never touch your warehouse. Create `day24/common.py`:
 
 ```python
@@ -67,6 +72,12 @@ def reset(name="schema_lab"):
 ---
 
 ## 24.1 What a Schema Is, and Where dlt Keeps It (20 min)
+
+> **Question it answers:** Which tables, columns and types did dlt create for my data, and where is that description stored?
+>
+> **Other questions you can answer the same way:**
+> - Is the value column a decimal number?
+> - Which column is the primary key?
 
 A **schema** describes your tables: their names, columns, data types, keys and nullability. You wrote schemas by hand in SQL on Day 11 (`CREATE TABLE … (rate DOUBLE, …)`). dlt **infers** a schema from the data and **stores** it:
 
@@ -122,6 +133,11 @@ duckdb schema_lab.duckdb -c "SELECT version, engine_version, inserted_at FROM la
 | nested `dict` / `list` | flattened or child table (Day 26), or `json` | |
 
 ### The first row decides, which can be a trap
+
+> **Question it answers:** Why did my value column become a whole-number type, and how do I stop that happening?
+>
+> **Other questions you can answer the same way:**
+> - Why were decimals lost or rejected in a later load?
 
 Add to `schema_basics.py` (or a new file):
 
@@ -186,6 +202,12 @@ Unhinted: `obs_date` may be `VARCHAR` (or a detected date/timestamp, depending o
 
 ## 24.3 Simulating an API That Changes (28 min)
 
+> **Question it answers:** What happens to my table when an API adds a field, drops one, or renames one?
+>
+> **Other questions you can answer the same way:**
+> - Why did a new column suddenly appear?
+> - Why is a column now mostly empty?
+
 APIs change: new fields appear, others disappear or get renamed. Let's simulate three "versions" of a CPI API and watch what dlt does. Create `day24/api_versions.py`:
 
 ```python
@@ -230,6 +252,11 @@ duckdb schema_lab.duckdb -c "SELECT ref_month, geo, geography, value, status FRO
 
 ### Detecting renames downstream
 
+> **Question it answers:** How do I keep my analysis working when the API renamed "geo" to "geography"?
+>
+> **Other questions you can answer the same way:**
+> - How do I combine an old and a new column name into one?
+
 The staging layer is the right place to **absorb** such changes explicitly:
 
 ```sql
@@ -243,6 +270,12 @@ FROM lab.cpi_feed;
 ---
 
 ## 24.4 Type Changes and Variant Columns (20 min)
+
+> **Question it answers:** What happens when the API sends the text "NA" in a numeric column?
+>
+> **Other questions you can answer the same way:**
+> - Why does my table now have a value__v_text column?
+> - How many rows arrived with the wrong type?
 
 What if a field changes **type**? Suppose the API starts sending the text `"NA"` instead of a number.
 
@@ -281,6 +314,11 @@ Consider adding this as a `warn` test in `sql/tests/` (Day 18).
 
 ## 24.5 Naming Conventions: How Keys Become Column Names (18 min)
 
+> **Question it answers:** What will StatCan and BoC field names like "SeriesTitleEn" or "BD.CDN.10YR.DQ.YLD" be called in the database?
+>
+> **Other questions you can answer the same way:**
+> - Why can't I find the column under its original name?
+
 dlt normalises every table and column name to **snake_case**, so names are valid and consistent in any database.
 
 ```python
@@ -309,6 +347,11 @@ Implications:
 
 ## 24.6 Exporting Schemas to Git · Mini-Project (25 min)
 
+> **Question it answers:** How do I save the schema as a file so that schema changes show up in code review?
+>
+> **Other questions you can answer the same way:**
+> - What changed in the schema since last week?
+
 If schema changes matter, they should be **reviewed** like code. dlt can write the schema to a YAML file after every run:
 
 ```python
@@ -325,6 +368,11 @@ After a run, `schemas/export/<schema_name>.schema.yaml` contains the current sch
 > dlt also accepts an `import_schema_path`: a schema file you edit by hand (e.g. to add hints) that dlt applies on the next run. It's useful for large projects, but for this course hints in code are enough.
 
 ### Mini-project: detect a (simulated) StatCan API change
+
+> **Question it answers:** When StatCan changes its metadata fields, exactly what changed in my schema?
+>
+> **Other questions you can answer the same way:**
+> - Did the latest run add or alter any columns?
 
 1. Write a resource `vector_titles()` that yields StatCan-style metadata records `{"vectorId": 41690973, "SeriesTitleEn": "...", "frequencyCode": 6}` for two vectors.
 2. Load it with `export_schema_path="schemas/export"` and commit the exported YAML.
@@ -405,6 +453,11 @@ There are three things a contract can govern:
 
 ## 25.2 Contract Modes (30 min)
 
+> **Question it answers:** What should the pipeline do when unexpected tables, columns or types arrive: accept, ignore or block them?
+>
+> **Other questions you can answer the same way:**
+> - How strict should each table be?
+
 Each entity can take one of four modes:
 
 | Mode | On violation |
@@ -441,6 +494,11 @@ def show(p):
 
 ### Experiment 1 — `freeze` columns
 
+> **Question it answers:** Can I block any load that tries to add a column I didn't expect?
+>
+> **Other questions you can answer the same way:**
+> - How do I protect a table that SQL models depend on?
+
 ```python
 p = fresh()
 try:
@@ -455,6 +513,11 @@ The new `status` column is rejected and **nothing** from that load is written.
 
 ### Experiment 2 — `discard_value` columns
 
+> **Question it answers:** Can I load the rows but silently drop an unexpected new field?
+>
+> **Other questions you can answer the same way:**
+> - How do I ignore extra fields an API starts sending?
+
 ```python
 p = fresh()
 p.run([{"series_id": "V39079", "value": 2.50, "status": "E"}],
@@ -465,6 +528,11 @@ show(p)
 The row loads and the unknown `status` value is silently dropped.
 
 ### Experiment 3 — `discard_row` columns
+
+> **Question it answers:** Can I skip only the rows that contain an unexpected field, and keep the rest?
+>
+> **Other questions you can answer the same way:**
+> - How do I quarantine odd records without stopping the load?
 
 ```python
 p = fresh()
@@ -478,6 +546,11 @@ Only the row **without** the unexpected field loads.
 
 ### Experiment 4 — `freeze` data types
 
+> **Question it answers:** Can I block a load when a numeric column suddenly receives text?
+>
+> **Other questions you can answer the same way:**
+> - How do I stop "NA" from sneaking into a numeric table?
+
 ```python
 p = fresh()
 try:
@@ -490,6 +563,11 @@ except Exception as e:
 No variant column is created; the load fails instead.
 
 ### Shorthand
+
+> **Question it answers:** How do I apply one strictness rule to tables, columns and types all at once?
+>
+> **Other questions you can answer the same way:**
+> - How do I make a whole resource read-only in shape?
 
 A single string applies to all three entities:
 
@@ -519,6 +597,11 @@ Which mode would you choose, and why, for:
 
 ## 25.3 Where to Set Contracts (20 min)
 
+> **Question it answers:** Should a contract be set on the resource, the source or a single run, and which one wins?
+>
+> **Other questions you can answer the same way:**
+> - How do I relax a contract for just one run?
+
 Contracts can be set at three levels. More specific settings override more general ones:
 
 ```python
@@ -537,6 +620,11 @@ pipeline.run(source, schema_contract="evolve")
 
 ### A layered strategy
 
+> **Question it answers:** How strict should landing tables, observation tables and metadata tables each be?
+>
+> **Other questions you can answer the same way:**
+> - Where do I want flexibility, and where do I want guarantees?
+
 ```
 raw_json / landing tables     →  evolve        (capture everything)
 raw_dlt observation tables    →  freeze        (shape is a promise to SQL models)
@@ -549,6 +637,11 @@ metadata tables               →  columns: evolve, data_type: freeze
 ---
 
 ## 25.4 Handling Violations Gracefully (20 min)
+
+> **Question it answers:** How do I report which source broke its contract, and keep the other sources running?
+>
+> **Other questions you can answer the same way:**
+> - Which source failed today, and why?
 
 A frozen contract raises an exception during the **normalize** step. The pipeline wraps it in a `PipelineStepFailed` error, which tells you which step failed. Your runner should:
 
@@ -583,6 +676,11 @@ The extracted data from a failed normalize step stays in the pipeline's working 
 ---
 
 ## 25.5 Row Validation with Pydantic Models (25 min)
+
+> **Question it answers:** How do I check values (not just shape), for example that a rate is a number and a date is a real date?
+>
+> **Other questions you can answer the same way:**
+> - How do I reject impossible values before they reach the warehouse?
 
 Contracts check the **shape** of data. **Pydantic** models add checks on **values**, written as a typed Python class:
 
@@ -627,6 +725,11 @@ Pydantic **converts** where it's safe (`"2.25"` → `2.25`, `"2026-07-01"` → a
 
 ### Using a model as a dlt resource's columns
 
+> **Question it answers:** How do I load only valid observations, dropping the rows whose values fail validation?
+>
+> **Other questions you can answer the same way:**
+> - How many rows were rejected, and which ones?
+
 ```python
 import dlt
 
@@ -653,6 +756,11 @@ Run it into a practice pipeline and check which rows arrived.
 ---
 
 ## 25.6 Mini-Project: Contracts for `macro_ingest` (20 min)
+
+> **Question it answers:** How do I guarantee that the production observation tables never change shape without me knowing?
+>
+> **Other questions you can answer the same way:**
+> - Does a test prove the contract really blocks unexpected columns?
 
 1. Add `schema_contract={"columns": "freeze", "data_type": "freeze"}` to the three **observation** resources in `macro_ingest`, and `{"columns": "evolve", "data_type": "freeze"}` to the three **metadata** resources.
 2. Update `ingest.py` to use `run_with_contract` (25.4).
@@ -735,6 +843,11 @@ git push
 
 ## 26.1 How dlt Normalises Nested Data (20 min)
 
+> **Question it answers:** How does dlt turn nested JSON (objects inside objects, lists inside records) into tables?
+>
+> **Other questions you can answer the same way:**
+> - Where did my nested fields end up?
+
 On Day 8 you flattened JSON by hand. dlt does it automatically using two rules:
 
 **Rule 1 — nested dictionaries become columns**, joined with a double underscore:
@@ -800,6 +913,11 @@ ORDER BY c._dlt_list_idx;
 
 ## 26.2 Loading a Raw Valet Response As-Is (25 min)
 
+> **Question it answers:** What tables appear if I load the Bank of Canada's JSON exactly as it comes, with no parsing?
+>
+> **Other questions you can answer the same way:**
+> - Why did I get one column per series code?
+
 Let's load the complete Valet response for **two** series with no parsing at all. Create `day26/valet_raw.py`:
 
 ```python
@@ -846,6 +964,11 @@ The **list** was handled beautifully. The **dict keyed by IDs** exploded into co
 
 ## 26.3 "Keys as Data": Reshaping Before Loading (23 min)
 
+> **Question it answers:** How do I reshape the Bank's ID-keyed JSON into clean tables of series and observations before loading?
+>
+> **Other questions you can answer the same way:**
+> - When should I reshape data myself instead of letting dlt flatten it?
+
 The rule of thumb:
 
 > **If a JSON key is actually a value (a series ID, a date, a country code), turn it into a row.**
@@ -891,6 +1014,11 @@ Now adding a series adds **rows**, not columns. The schema is stable, which is e
 ---
 
 ## 26.4 StatCan WDS: Letting dlt Flatten for You (20 min)
+
+> **Question it answers:** How do StatCan vectors and their data points become a parent table and a child table I can join?
+>
+> **Other questions you can answer the same way:**
+> - What was the latest value of each vector, joined to its metadata?
 
 StatCan's vector response is a list of `{status, object: {vectorId, …, vectorDataPoint: [...]}}`. Its structure is already relational (lists, not ID-keyed dicts), so we can let dlt do all the work:
 
@@ -953,6 +1081,11 @@ This is a **staging model** (Day 18) on top of a raw nested load. Whether you fl
 
 ## 26.5 Controlling Depth: `max_table_nesting` and JSON Columns (20 min)
 
+> **Question it answers:** How do I stop a deeply nested API from creating dozens of child tables?
+>
+> **Other questions you can answer the same way:**
+> - How do I keep nested detail as a JSON column instead?
+
 Deeply nested APIs can produce many child tables. `max_table_nesting` sets how many levels become tables. Anything deeper is stored as a **JSON column** instead.
 
 ```python
@@ -989,6 +1122,12 @@ When is a JSON column the right choice?
 ---
 
 ## 26.6 Mini-Project: StatCan Cube Metadata → a Product Hierarchy (28 min)
+
+> **Question it answers:** What dimensions and members does a StatCan table have, and how are CPI components arranged in a hierarchy?
+>
+> **Other questions you can answer the same way:**
+> - Which components sit under "Shelter"?
+> - Which geographies does a table cover?
 
 StatCan's `getCubeMetadata` endpoint describes a table's **dimensions** and their **members**, including each member's parent. For CPI, that's the product hierarchy: *All-items → Food → Food purchased from stores → …*. That hierarchy is exactly what the Day 19 stretch goal (diffusion over leaf-level components) needed.
 
@@ -1123,6 +1262,11 @@ Two concepts make these work:
 
 ## 27.2 `dlt.sources.incremental`: a Cursor on One Series (25 min)
 
+> **Question it answers:** How do I download only the observations that are newer than the last one I loaded?
+>
+> **Other questions you can answer the same way:**
+> - How much faster is an incremental run than a full reload?
+
 Create `day27/incremental_basics.py`:
 
 ```python
@@ -1179,6 +1323,11 @@ duckdb incr_lab.duckdb -c "SELECT _dlt_load_id, COUNT(*) FROM lab.overnight_rate
 
 ### Where is the state?
 
+> **Question it answers:** What is the last date the pipeline remembers loading?
+>
+> **Other questions you can answer the same way:**
+> - Why did the pipeline skip data I expected?
+
 ```python
 import json
 print(json.dumps(p.state.get("sources", {}), indent=2, default=str))
@@ -1189,6 +1338,11 @@ You'll find the cursor's `last_value` under the resource name. The state is also
 ---
 
 ## 27.3 Revisions: Lookback Windows + `merge` (20 min)
+
+> **Question it answers:** How do I pick up revisions to recent months while still loading only new data?
+>
+> **Other questions you can answer the same way:**
+> - How far back should I re-request to catch StatCan's revisions?
 
 Economic data gets **revised**. StatCan revises recent months of many series with each release, and GDP is revised for years. A pure "only after the cursor" strategy **never sees revisions** to data it already loaded.
 
@@ -1229,6 +1383,11 @@ How long should the lookback be?
 ---
 
 ## 27.4 Many Series, One Resource: Per-Series State (20 min)
+
+> **Question it answers:** How do I track the last loaded date separately for each series, so daily series don't make me skip monthly ones?
+>
+> **Other questions you can answer the same way:**
+> - Why did FEDFUNDS miss its latest month?
 
 Our observation resources load **many series** into one long table. A single cursor per resource is then wrong:
 
@@ -1314,6 +1473,11 @@ GROUP BY ALL HAVING COUNT(*) > 1;          -- expect zero rows
 
 ## 27.5 Change Detection: Only Download Republished Tables (15 min)
 
+> **Question it answers:** Has StatCan republished this table since my last download, and should I fetch it again?
+>
+> **Other questions you can answer the same way:**
+> - When was the CPI table last released?
+
 Full StatCan tables (Days 10 and 18) are large, and most days they haven't changed. `getCubeMetadata` (Day 26) includes a **release time**. Store it in state and skip the download when it hasn't moved:
 
 ```python
@@ -1357,6 +1521,11 @@ Each row in `statcan_releases` records **when** a table was republished: a log o
 
 ### Backfilling a historical window
 
+> **Question it answers:** How do I reload 2008–2009 without disturbing the saved position for regular runs?
+>
+> **Other questions you can answer the same way:**
+> - How do I fill a gap in past data?
+
 To (re)load a specific past period without disturbing the saved cursor, give the incremental an `end_value`:
 
 ```python
@@ -1369,6 +1538,11 @@ When `end_value` is set, dlt treats the run as a **backfill** and does not updat
 
 ### Starting over
 
+> **Question it answers:** How do I drop a resource's tables and memory and reload everything from scratch?
+>
+> **Other questions you can answer the same way:**
+> - What do I do after a bad load corrupted the data?
+
 ```python
 p.run(source, refresh="drop_resources")    # drop the resources' tables AND state, then reload
 ```
@@ -1376,6 +1550,12 @@ p.run(source, refresh="drop_resources")    # drop the resources' tables AND stat
 Use this after changing a resource's logic in a way that invalidates what's already loaded, for example a different cleaning rule.
 
 ### Keeping vintages: how did the data look *then*?
+
+> **Question it answers:** What did real GDP for each quarter look like in each past release (each vintage)?
+>
+> **Other questions you can answer the same way:**
+> - How much was last quarter's GDP revised?
+> - What data would a forecaster have had on a given date?
 
 `merge` keeps only the **latest** value. For research on revisions (and for honest forecasting evaluation on Days 61–70), you may want every version. The simplest approach is a separate **append** table of snapshots:
 
@@ -1409,6 +1589,11 @@ ORDER BY date;
 ---
 
 ## 27.7 Capstone: An Incremental `macro_ingest` (25 min)
+
+> **Question it answers:** How do I make the production pipeline load only new and revised data, with per-series state and lookback windows?
+>
+> **Other questions you can answer the same way:**
+> - How do I configure the lookback for each source?
 
 Upgrade the Day 23 package.
 
@@ -1534,6 +1719,11 @@ HAVING COUNT(*) > 1
 </details>
 
 ### Measure the improvement
+
+> **Question it answers:** How much faster is the incremental pipeline than a full refresh, and do all tests still pass?
+>
+> **Other questions you can answer the same way:**
+> - Is the incremental data identical to a full reload?
 
 ```bash
 time python ingest.py --full-refresh      # first, full load
